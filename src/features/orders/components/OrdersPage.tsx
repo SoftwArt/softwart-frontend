@@ -44,7 +44,7 @@ export function OrdersPage() {
   const [isViewOpen,  setIsViewOpen]  = useState(false)
   const [viewingItem, setViewingItem] = useState<Pedido | null>(null)
 
-  const form = useOrderForm({ estados, rawVentas, onCreate, onEdit })
+  const form = useOrderForm({ estados, rawVentas, pedidos, onCreate, onEdit })
   const statusFlow = useOrderStatusFlow({ estados, onChangeStatus, onDelete })
   const history = useOrderHistory()
 
@@ -114,7 +114,7 @@ export function OrdersPage() {
         idServicio={form.idServicio} onIdServicioChange={form.setIdServicio}
         idMarco={form.idMarco} onIdMarcoChange={form.setIdMarco}
         fecha={form.fecha} onFechaChange={form.setFecha}
-        precio={form.precio}
+        precio={form.precio} onPrecioChange={form.onPrecioChange} restanteDisponible={form.restanteDisponible}
         observacion={form.observacion} onObservacionChange={form.setObservacion}
         errors={form.errors}
         isSubmitting={form.isSubmitting}

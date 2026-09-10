@@ -27,7 +27,12 @@ const AuthLayout        = lazy(() => import('@/src/features/auth/components/Auth
 const NotFoundPage      = lazy(() => import('@/src/features/auth/components/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 const PoliticaPrivacidadPage = lazy(() => import('@/src/features/legal/components/PoliticaPrivacidadPage').then(m => ({ default: m.PoliticaPrivacidadPage })))
 const TerminosServicioPage   = lazy(() => import('@/src/features/legal/components/TerminosServicioPage').then(m => ({ default: m.TerminosServicioPage })))
-const MyAccountPage     = lazy(() => import('@/src/features/account/components/MyAccountPage').then(m => ({ default: m.MyAccountPage })))
+const AccountLayout     = lazy(() => import('@/src/features/account/components/AccountLayout').then(m => ({ default: m.AccountLayout })))
+const AccountResumenPage    = lazy(() => import('@/src/features/account/components/ResumenPage').then(m => ({ default: m.ResumenPage })))
+const AccountCitasPage      = lazy(() => import('@/src/features/account/components/CitasPage').then(m => ({ default: m.CitasPage })))
+const AccountServiciosPage  = lazy(() => import('@/src/features/account/components/ServiciosPage').then(m => ({ default: m.ServiciosPage })))
+const AccountAbonosPage     = lazy(() => import('@/src/features/account/components/AbonosPage').then(m => ({ default: m.AbonosPage })))
+const AccountCuentaPage     = lazy(() => import('@/src/features/account/components/CuentaPage').then(m => ({ default: m.CuentaPage })))
 const DashboardPage     = lazy(() => import('@/src/features/dashboard/components/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const ClientsPage       = lazy(() => import('@/src/features/clients/components/ClientsPage').then(m => ({ default: m.ClientsPage })))
 const UsersPage         = lazy(() => import('@/src/features/users/components/UsersPage').then(m => ({ default: m.UsersPage })))
@@ -205,7 +210,13 @@ export default function App() {
           </Route>
 
           {/* Área cliente */}
-          <Route path="/my-account" element={<RequireCliente><MyAccountPage /></RequireCliente>} />
+          <Route path="/my-account" element={<RequireCliente><AccountLayout /></RequireCliente>}>
+            <Route index          element={<AccountResumenPage />} />
+            <Route path="citas"     element={<AccountCitasPage />} />
+            <Route path="servicios" element={<AccountServiciosPage />} />
+            <Route path="abonos"    element={<AccountAbonosPage />} />
+            <Route path="perfil"    element={<AccountCuentaPage />} />
+          </Route>
 
           {/* Panel admin */}
           <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>

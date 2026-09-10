@@ -74,10 +74,35 @@ export function estadoBadgeClasses(nombre?: string): string {
   return 'bg-muted text-muted-foreground'
 }
 
+// Orden de prioridad pedido para "Tus citas" del portal cliente: las citas
+// que necesitan atención (Confirmada/Pendiente) van primero, sin importar
+// qué tan vieja sea la fecha; Completada/Cancelada/No asistió (ya resueltas)
+// van después. Dentro de cada grupo, de la fecha más nueva a la más vieja.
+export function estadoCitaPriority(nombre?: string): number {
+  if (!nombre) return 99
+  const s = nombre.toLowerCase()
+  if (s.includes('confirmada')) return 0
+  if (s.includes('pend'))       return 1
+  if (s.includes('complet'))    return 2
+  if (s.includes('cancel'))     return 3
+  if (s.includes('asisti'))     return 4
+  return 99
+}
+
 export function estadoServicioBadgeClasses(estado: string): string {
   const s = estado.toLowerCase()
   if (s.includes('cancel'))   return 'bg-red-100 text-red-800'
   if (s.includes('finaliz'))  return 'bg-emerald-100 text-emerald-800'
   if (s.includes('preparac')) return 'bg-amber-100 text-amber-800'
   return 'bg-muted text-muted-foreground'
+}
+
+// Mismo criterio que estadoServicioBadgeClasses, para el punto de color de
+// la línea de tiempo de servicios (ServiciosTimeline) en vez de un badge.
+export function estadoDotClasses(estado: string): string {
+  const s = estado.toLowerCase()
+  if (s.includes('cancel'))   return 'bg-red-500'
+  if (s.includes('finaliz'))  return 'bg-emerald-500'
+  if (s.includes('preparac')) return 'bg-amber-500'
+  return 'bg-muted-foreground/40'
 }

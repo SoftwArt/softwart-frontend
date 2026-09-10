@@ -17,7 +17,8 @@ interface OrderFormDialogProps {
   idServicio: string; onIdServicioChange: (v: string) => void
   idMarco: string;    onIdMarcoChange:    (v: string) => void
   fecha: string;      onFechaChange:      (v: string) => void
-  precio: string
+  precio: string;     onPrecioChange:     (v: string) => void
+  restanteDisponible: number
   observacion: string; onObservacionChange: (v: string) => void
   errors: Record<string, string>
   isSubmitting: boolean
@@ -32,7 +33,7 @@ export function OrderFormDialog({
   idServicio, onIdServicioChange,
   idMarco, onIdMarcoChange,
   fecha, onFechaChange,
-  precio,
+  precio, onPrecioChange, restanteDisponible,
   observacion, onObservacionChange,
   errors, isSubmitting, onSubmit, onCancel,
 }: OrderFormDialogProps) {
@@ -84,18 +85,42 @@ export function OrderFormDialog({
           </div>
           <div>
             <label className={labelCls} htmlFor="ped-precio">
-              Precio <span className="text-muted-foreground font-normal normal-case tracking-normal">(tomado del pedido, no editable)</span>
+              Precio <span className="text-destructive">*</span>
+              {!!editingId && <span className="text-muted-foreground font-normal normal-case tracking-normal"> (no editable)</span>}
             </label>
-            <FieldErrorTooltip error={errors.precio}>
-              <input
-                id="ped-precio"
-                type="text"
-                value={precio ? fmtCOP(Number(precio)) : ''}
-                readOnly
-                className={inputCls + ' opacity-60 cursor-not-allowed'}
-                placeholder="Se completa al seleccionar el pedido"
-              />
-            </FieldErrorTooltip>
+            {editingId ? (
+              <FieldErrorTooltip error={errors.precio}>
+                <input
+                  id="ped-precio"
+                  type="text"
+                  value={precio ? fmtCOP(Number(precio)) : ''}
+                  readOnly
+                  className={inputCls + ' opacity-60 cursor-not-allowed'}
+                />
+              </FieldErrorTooltip>
+            ) : (
+              <>
+                <FieldErrorTooltip error={errors.precio}>
+                  <input
+                    id="ped-precio"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={idVenta ? restanteDisponible : undefined}
+                    value={precio}
+                    onChange={(e) => onPrecioChange(e.target.value)}
+                    className={inputCls}
+                    placeholder="Se sugiere el restante del pedido"
+                    disabled={!idVenta}
+                  />
+                </FieldErrorTooltip>
+                {!!idVenta && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Restante disponible en este pedido: <strong>{fmtCOP(restanteDisponible)}</strong>
+                  </p>
+                )}
+              </>
+            )}
           </div>
           <div>
             <label className={labelCls} htmlFor="ped-observacion">Observación (opcional)</label>

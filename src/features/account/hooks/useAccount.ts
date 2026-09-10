@@ -12,8 +12,8 @@ export type { PerfilCliente, Cita, Servicio } from '../types'
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 // Composición de los hooks especializados de la cuenta del cliente — mantiene
-// la misma forma plana de retorno que antes para no tocar los consumidores
-// (MyAccountPage, ProfileModal, AppointmentsModal, NewAppointmentModal, ServicesModal).
+// la misma forma plana de retorno para no tocar los consumidores
+// (AccountLayout y las páginas bajo /my-account, NewAppointmentModal).
 export function useAccount() {
   const navigate = useNavigate()
 
