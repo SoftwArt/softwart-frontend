@@ -42,7 +42,7 @@ export function AppointmentsTable({
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[14%]">Fecha</TableHead>
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[12%]">Hora</TableHead>
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[20%]">Estado</TableHead>
-              <TableHead className="text-right text-xs font-semibold tracking-wide text-muted-foreground w-[20%]">Acciones</TableHead>
+              <TableHead className="text-center text-xs font-semibold tracking-wide text-muted-foreground w-44">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

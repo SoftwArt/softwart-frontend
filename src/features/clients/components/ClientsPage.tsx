@@ -1,28 +1,21 @@
 // src/features/clients/components/ClientsPage.tsx
 import { useClients } from '../hooks/useClients'
 import { useClientForm } from '../hooks/useClientForm'
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import type { Cliente } from '../types'
-import { filterClientes } from '../utils'
-import { Plus } from 'lucide-react'
-import { Button }   from '@/src/shared/components/ui/button'
 import { Skeleton } from '@/src/shared/components/ui/skeleton'
 import { EmptyState } from '@/src/shared/components/EmptyState'
-import { SearchInput }   from '@/src/shared/components/SearchInput'
-import { FilterBar }     from '@/src/shared/components/FilterBar'
-import { usePagination } from '@/src/shared/hooks/usePagination'
+import { CrudToolbar }   from '@/src/shared/components/CrudToolbar'
 import { ClientsTable } from './ClientsTable'
 import { ClientFormDialog } from './ClientFormDialog'
 import { ClientViewDialog } from './ClientViewDialog'
 
 export function ClientsPage() {
-  const { clientes, isLoading, onCreate, onEdit, onDelete, onToggleStatus } = useClients()
-
-  const [q,            setQ]            = useState('')
   const [filterEstado, setFilterEstado] = useState('')
-
-  const filtered = useMemo(() => filterClientes(clientes, q, filterEstado), [clientes, q, filterEstado])
-  const { paginated, page, setPage, totalPages, total, pageSize, setPageSize } = usePagination(filtered)
+  const {
+    clientes, isLoading, total, page, setPage, totalPages, pageSize, setPageSize, q, setQ,
+    onCreate, onEdit, onDelete, onToggleStatus,
+  } = useClients({ estado: filterEstado })
 
   const [isViewOpen,  setIsViewOpen]  = useState(false)
   const [viewingItem, setViewingItem] = useState<Cliente | null>(null)
@@ -32,48 +25,45 @@ export function ClientsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-3xl text-secondary">Clientes</h1>
-          <p className="text-muted-foreground">Gestiona los clientes registrados</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <SearchInput
-            value={q} onChange={setQ}
-            placeholder="Buscar nombre, documento, correo..."
-            className="w-96"
-          />
-          <Button onClick={form.openCreate} className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0">
-            <Plus className="mr-2 h-4 w-4" />Registrar Cliente
-          </Button>
-        </div>
+      <div>
+        <h1 className="font-serif text-3xl text-secondary">Clientes</h1>
+        <p className="text-muted-foreground">Gestiona los clientes registrados</p>
       </div>
 
-      <FilterBar
-        filters={[
-          { key: 'estado', label: 'Estado', type: 'chips', value: filterEstado, onChange: setFilterEstado,
-            options: [{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }] },
-        ]}
-        onClear={() => setFilterEstado('')}
-      />
-
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={`sk-${i}`} className="h-12 w-full rounded-md" />)}
-        </div>
-      ) : filtered.length === 0 ? (
-        <EmptyState title="Sin resultados" description="No hay clientes que coincidan con la búsqueda." />
-      ) : (
-        <ClientsTable
-          clientes={paginated}
-          page={page} totalPages={totalPages} total={total} pageSize={pageSize}
-          onPageChange={setPage} onPageSizeChange={setPageSize}
-          onView={openView}
-          onEdit={form.openEdit}
-          onToggleStatus={onToggleStatus}
-          onDelete={onDelete}
+      {/* gap-2 (no gap-4) entre el toolbar y la tabla: se quiere la barra de
+          búsqueda/filtro/crear pegada a la tabla, no separada como el resto
+          de bloques de la página. */}
+      <div className="flex flex-col gap-2">
+        <CrudToolbar
+          searchValue={q} onSearchChange={setQ}
+          searchPlaceholder="Buscar nombre, documento, correo..."
+          filters={[
+            { key: 'estado', label: 'Estado', type: 'chips', value: filterEstado, onChange: setFilterEstado,
+              options: [{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }] },
+          ]}
+          onClearFilters={() => setFilterEstado('')}
+          createLabel="Registrar Cliente"
+          onCreate={form.openCreate}
         />
-      )}
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={`sk-${i}`} className="h-12 w-full rounded-md" />)}
+          </div>
+        ) : total === 0 ? (
+          <EmptyState title="Sin resultados" description="No hay clientes que coincidan con la búsqueda." />
+        ) : (
+          <ClientsTable
+            clientes={clientes}
+            page={page} totalPages={totalPages} total={total} pageSize={pageSize}
+            onPageChange={setPage} onPageSizeChange={setPageSize}
+            onView={openView}
+            onEdit={form.openEdit}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
+        )}
+      </div>
 
       {viewingItem && (
         <ClientViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} cliente={viewingItem} />

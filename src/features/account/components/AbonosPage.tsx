@@ -92,7 +92,7 @@ export function AbonosPage() {
                     >
                       <div>
                         <p className="font-semibold text-foreground">
-                          Pedido #{venta.id_venta} · {formatDate(venta.fecha)}
+                          {formatDate(venta.fecha)}
                         </p>
                         <p className="text-sm text-muted-foreground mt-0.5">
                           {venta.servicios.map(s => s.nombre).join(', ') || 'Sin servicios asociados'}
@@ -102,7 +102,19 @@ export function AbonosPage() {
                       {venta.completado ? (
                         <InstallmentCompletedBanner estado={venta} />
                       ) : (
-                        <InstallmentPlanProgress estado={venta} />
+                        <>
+                          <InstallmentPlanProgress estado={venta} />
+                          {venta.pagos_realizados === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              El pedido se empieza a trabajar desde que se recibe y valida el primer abono.
+                            </p>
+                          ) : venta.fecha_estimada && (
+                            <p className="text-xs text-muted-foreground">
+                              El último abono se espera alrededor de la fecha estimada de entrega:{' '}
+                              <span className="font-medium text-foreground">{formatDate(venta.fecha_estimada)}</span>
+                            </p>
+                          )}
+                        </>
                       )}
                     </m.section>
                   ))}

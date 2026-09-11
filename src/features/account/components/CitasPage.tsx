@@ -14,7 +14,7 @@ export function CitasPage() {
   const { citas, isLoading, onCancelAppointment, openNewAppointment } = useOutletContext<AccountOutletContext>()
   const [query, setQuery] = useState('')
 
-  // Primero por estado (Confirmada > Pendiente > Completada > Cancelada >
+  // Primero por estado (Pendiente > Confirmada > Completada > Cancelada >
   // No asistió), y dentro de cada estado de la fecha más nueva a la más
   // vieja — ver estadoCitaPriority en utils.ts.
   const sorted = useMemo(

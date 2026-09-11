@@ -127,17 +127,22 @@ export function useAppointmentsOptions() {
 }
 
 // ── Servicios ─────────────────────────────────────────────────
-type ServicioOption = { id_servicio: number; nombre: string }
+// duracion (días) viaja en rawServicios — se necesita para sugerir la fecha
+// estimada de un Pedido/SaleDetail (ver OrdersPage.tsx/useOrderForm.ts).
+export type ServicioOption = { id_servicio: number; nombre: string; duracion: number }
 
 export function useServicesOptions() {
-  const [options,   setOptions]   = useState<ComboboxOption[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [options,      setOptions]      = useState<ComboboxOption[]>([])
+  const [rawServicios, setRawServicios] = useState<ServicioOption[]>([])
+  const [isLoading,    setIsLoading]    = useState(true)
 
   useEffect(() => {
     apiRequest<ApiResponse<ServicioOption[]>>('/api/services')
       .then((res) => {
+        const data = res.data ?? []
+        setRawServicios(data)
         setOptions(
-          (res.data ?? []).map((s) => ({
+          data.map((s) => ({
             value: String(s.id_servicio),
             label: s.nombre,
           }))
@@ -147,7 +152,7 @@ export function useServicesOptions() {
       .finally(() => setIsLoading(false))
   }, [])
 
-  return { options, isLoading }
+  return { options, rawServicios, isLoading }
 }
 
 // ── Roles ─────────────────────────────────────────────────────

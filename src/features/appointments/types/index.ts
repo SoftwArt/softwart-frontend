@@ -28,11 +28,12 @@ export type BackendCita = {
 }
 
 export type VentaLinea = {
-  id:           number
-  id_servicio:  string
-  id_marco:     string
-  precio:       string
-  observacion:  string
+  id:              number
+  id_servicio:     string
+  id_marco:        string
+  precio:          string
+  fecha_estimada:  string
+  observacion:     string
 }
 
 export type SaleDetailPreview = { id_detalle: number; serviceStatus?: { nombre: string } | null }

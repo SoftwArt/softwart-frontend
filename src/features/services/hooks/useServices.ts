@@ -1,44 +1,43 @@
 // src/features/services/hooks/useServices.ts
-import { useState, useEffect } from 'react'
 import { apiRequest } from '@/src/shared/lib/apiClient'
+import { useServerPagination } from '@/src/shared/hooks/useServerPagination'
 import type { Servicio, CreateServicioDto, UpdateServicioDto } from '../types'
 
-type ApiResponse<T> = { success: boolean; data: T }
+type ApiResponse<T> = { success: boolean; data: T; meta?: { total: number } }
+type Filters = { estado: string }
 
-export function useServices() {
-  const [servicios, setServicios] = useState<Servicio[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+async function fetchServiciosPage({ page, pageSize, q, filters }: {
+  page: number; pageSize: number; q: string; filters: Filters
+}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+  if (q) params.set('q', q)
+  if (filters.estado) params.set('estado', filters.estado)
+  const res = await apiRequest<ApiResponse<Servicio[]>>(`/api/services?${params}`)
+  const data = (res.data ?? []).map(s => ({
+    ...s,
+    duracion: Number(s.duracion ?? 0),
+    estado:   s.estado !== false,
+  }))
+  return { data, total: res.meta?.total ?? 0 }
+}
 
-  const fetchAll = async () => {
-    setIsLoading(true); setError(null)
-    try {
-      const res = await apiRequest<ApiResponse<Servicio[]>>('/api/services?limit=500')
-      setServicios((res.data ?? []).map(s => ({
-        ...s,
-        duracion: Number(s.duracion ?? 0),
-        estado:   s.estado !== false,
-      })))
-    } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
-    finally { setIsLoading(false) }
-  }
-
-  useEffect(() => { fetchAll() }, [])
+export function useServices(filters: Filters) {
+  const sp = useServerPagination<Servicio, Filters>({ fetchPage: fetchServiciosPage, filters })
 
   const onCreate = async (data: CreateServicioDto) => {
     await apiRequest('/api/services', { method: 'POST', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onEdit = async (id: number, data: UpdateServicioDto) => {
     await apiRequest(`/api/services/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onDelete = async (id: number): Promise<string | null> => {
     try {
       await apiRequest(`/api/services/${id}`, { method: 'DELETE' })
-      await fetchAll()
+      sp.refresh()
       return null
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error al eliminar'
@@ -51,10 +50,15 @@ export function useServices() {
   }
 
   const onToggleStatus = async (id: number) => {
-    setServicios(prev => prev.map(s => s.id_servicio === id ? { ...s, estado: !s.estado } : s))
-    try { await apiRequest(`/api/services/${id}/estado`, { method: 'PATCH' }) }
-    catch { setServicios(prev => prev.map(s => s.id_servicio === id ? { ...s, estado: !s.estado } : s)) }
+    await apiRequest(`/api/services/${id}/estado`, { method: 'PATCH' })
+    sp.refresh()
   }
 
-  return { servicios, isLoading, error, onCreate, onEdit, onDelete, onToggleStatus }
+  return {
+    servicios: sp.items, isLoading: sp.isLoading, error: sp.error,
+    page: sp.page, setPage: sp.setPage, pageSize: sp.pageSize, setPageSize: sp.setPageSize,
+    total: sp.total, totalPages: sp.totalPages,
+    q: sp.q, setQ: sp.setQ,
+    onCreate, onEdit, onDelete, onToggleStatus,
+  }
 }

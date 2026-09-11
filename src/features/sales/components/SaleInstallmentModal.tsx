@@ -39,6 +39,17 @@ export function SaleInstallmentModal({ open, onClose, idVenta, labelVenta, onSuc
 
             <InstallmentPlanProgress estado={estado} />
 
+            {/* Recordatorio: el trabajo del servicio solo arranca una vez
+                que el primer abono queda validado (ver useOrderStatusFlow /
+                OrderAdvanceAlert, que ya bloquean avanzar el estado del
+                pedido sin eso) — esto es solo la nota visible, no cambia esa
+                validación. Deja de aplicar una vez hay al menos un abono. */}
+            {estado.pagos_realizados === 0 && (
+              <p className="text-xs text-muted-foreground -mt-2">
+                El servicio se empieza a trabajar desde que se recibe y valida el primer abono.
+              </p>
+            )}
+
             {/* ── Tabs: Pagar / Configurar ─────────────────────────────────── */}
             {!estado.completado && (
               <>

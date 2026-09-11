@@ -3,8 +3,7 @@
 // solo que el fetch/estado de historial ahora vive en useServiceHistory
 // (compartido por el padre) en vez de estar duplicado por fila.
 import { m } from 'framer-motion'
-import { ChevronDown, CreditCard } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { ChevronDown } from 'lucide-react'
 import { formatCurrency } from '@/src/shared/lib/formatCurrency'
 import { formatDate } from '@/src/shared/lib/formatDate'
 import { estadoDotClasses, estadoServicioBadgeClasses } from '../utils'
@@ -43,8 +42,10 @@ export function ServicioTimelineItem({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
               <span className="text-xs text-muted-foreground">{formatDate(servicio.fecha)}</span>
               <span className="text-xs font-medium text-primary">{formatCurrency(servicio.precio)}</span>
-              {servicio.id_venta != null && (
-                <span className="text-xs text-muted-foreground">Pedido #{servicio.id_venta}</span>
+              {servicio.fecha_estimada && (
+                <span className="text-xs text-muted-foreground">
+                  Entrega estimada: <span className="font-medium text-foreground">{formatDate(servicio.fecha_estimada)}</span>
+                </span>
               )}
             </div>
             {servicio.observacion && (
@@ -67,15 +68,6 @@ export function ServicioTimelineItem({
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             {isExpanded ? 'Ocultar historial' : 'Ver historial'}
           </button>
-          {servicio.id_venta != null && (
-            <Link
-              to={`/my-account/abonos?venta=${servicio.id_venta}`}
-              className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              <CreditCard className="h-3.5 w-3.5" />
-              Ver abonos
-            </Link>
-          )}
         </div>
 
         {isExpanded && (

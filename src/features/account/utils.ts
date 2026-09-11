@@ -1,5 +1,5 @@
 // src/features/account/utils.ts
-import type { Cita, Servicio } from './types'
+import type { Cita, Servicio, PedidoServicios } from './types'
 import { bogotaNowMs, bogotaCitaMs } from '@/src/shared/lib/bogotaTime'
 import { matchesFecha } from '@/src/shared/lib/formatDate'
 import { matchesMonto } from '@/src/shared/lib/formatCurrency'
@@ -44,6 +44,37 @@ export function filterServiciosCuenta(servicios: Servicio[], q: string): Servici
   )
 }
 
+// Agrupa la lista plana de /api/cuenta/servicios por Pedido (id_venta) — los
+// abonos y el total son del Pedido, no de cada Servicio individual, así que
+// la UI del cliente los presenta agrupados aunque el backend siga devolviendo
+// la lista plana (ver ServiciosPage.tsx / PedidoServiciosCard.tsx). Se agrupa
+// acá en vez de en el backend para no tocar el shape que también consume el
+// preview de "Tus servicios" en el Resumen.
+export function groupServiciosByPedido(servicios: Servicio[]): PedidoServicios[] {
+  const grupos = new Map<number | null, Servicio[]>()
+  for (const sv of servicios) {
+    const key = sv.id_venta
+    const lista = grupos.get(key)
+    if (lista) lista.push(sv)
+    else grupos.set(key, [sv])
+  }
+
+  return Array.from(grupos.entries()).map(([id_venta, lista]) => {
+    const fechas = lista.map(s => s.fecha).sort()
+    const fechasEstimadas = lista.map(s => s.fecha_estimada).filter((f): f is string => !!f).sort()
+    return {
+      id_venta,
+      fecha:          fechas[0],
+      total:          lista.reduce((sum, s) => sum + Number(s.precio), 0),
+      fecha_estimada: fechasEstimadas.length ? fechasEstimadas[fechasEstimadas.length - 1] : null,
+      servicios:      lista,
+    }
+  })
+  // Mismo orden que ya traía el backend (más reciente primero): los grupos
+  // conservan el orden de aparición de su primer servicio en la lista plana,
+  // así que no hace falta reordenar acá.
+}
+
 // Espeja la ventana mínima de 24h antes de la cita que valida el backend
 // (ClientAccountController.cancelMyAppointment, Términos de Servicio §4) —
 // evita ofrecer un botón que siempre fallaría al confirmar. fecha/hora son
@@ -74,15 +105,16 @@ export function estadoBadgeClasses(nombre?: string): string {
   return 'bg-muted text-muted-foreground'
 }
 
-// Orden de prioridad pedido para "Tus citas" del portal cliente: las citas
-// que necesitan atención (Confirmada/Pendiente) van primero, sin importar
-// qué tan vieja sea la fecha; Completada/Cancelada/No asistió (ya resueltas)
-// van después. Dentro de cada grupo, de la fecha más nueva a la más vieja.
+// Orden de prioridad pedido para "Tus citas" del portal cliente: Pendiente
+// (necesita que el taller la confirme) primero, luego Confirmada (ya
+// agendada en firme, esperando la fecha), luego Completada, y por último
+// No Asistió/Cancelada (resueltas, ya no requieren atención). Dentro de
+// cada grupo, de la fecha más nueva a la más vieja.
 export function estadoCitaPriority(nombre?: string): number {
   if (!nombre) return 99
   const s = nombre.toLowerCase()
-  if (s.includes('confirmada')) return 0
-  if (s.includes('pend'))       return 1
+  if (s.includes('pend'))       return 0
+  if (s.includes('confirmada')) return 1
   if (s.includes('complet'))    return 2
   if (s.includes('cancel'))     return 3
   if (s.includes('asisti'))     return 4

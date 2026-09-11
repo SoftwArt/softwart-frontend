@@ -4,11 +4,13 @@ import type { Cita, VentaLinea } from '../types'
 import { fmtCOP } from '../utils'
 import { buildQuotePdf } from '../utils/buildQuotePdf'
 import type { ComboboxOption } from '@/src/shared/components/Combobox'
+import type { ServicioOption } from '@/src/shared/hooks/useOptions'
 import { apiRequest } from '@/src/shared/lib/apiClient'
 import { withToast } from '@/src/shared/lib/withToast'
+import { bogotaTodayStr, addDaysToDateStr } from '@/src/shared/lib/bogotaTime'
 import { toast } from 'sonner'
 
-type Params = { refresh: () => Promise<void> }
+type Params = { refresh: () => Promise<void>; rawServicios: ServicioOption[] }
 
 // Misma validación para "Crear pedido" y "Crear cotización" — una cotización
 // con un servicio vacío o un precio en $0 no tiene sentido para el cliente.
@@ -53,7 +55,7 @@ function validarPlanAbonos(
   return errs
 }
 
-export function useAppointmentSaleForm({ refresh }: Params) {
+export function useAppointmentSaleForm({ refresh, rawServicios }: Params) {
   const [ventaModalCita, setVentaModalCita] = useState<Cita | null>(null)
   const [ventaLineas,    setVentaLineas]    = useState<VentaLinea[]>([])
   const [ventaObs,       setVentaObs]       = useState('')
@@ -103,7 +105,7 @@ export function useAppointmentSaleForm({ refresh }: Params) {
   }
 
   const lineaVacia = useCallback((id: number): VentaLinea =>
-    ({ id, id_servicio: '', id_marco: '', precio: '', observacion: '' }), [])
+    ({ id, id_servicio: '', id_marco: '', precio: '', fecha_estimada: '', observacion: '' }), [])
 
   const openVentaModal = (cita: Cita) => {
     setVentaModalCita(cita)
@@ -122,7 +124,19 @@ export function useAppointmentSaleForm({ refresh }: Params) {
   const addLinea    = () => setVentaLineas(p => [...p, lineaVacia(Date.now())])
   const removeLinea = (id: number) => setVentaLineas(p => p.filter(l => l.id !== id))
   const updateLinea = (id: number, field: keyof VentaLinea, value: string) =>
-    setVentaLineas(p => p.map(l => l.id === id ? { ...l, [field]: value } : l))
+    setVentaLineas(p => p.map(l => {
+      if (l.id !== id) return l
+      const actualizada = { ...l, [field]: value }
+      // Al elegir el servicio, sugiere fecha_estimada = hoy + duración (la
+      // venta se crea con fecha = hoy, ver AppointmentController.createSaleFromAppointment)
+      // — solo si el usuario todavía no la había tocado a mano, para no
+      // pisarle un valor que ya editó.
+      if (field === 'id_servicio' && !l.fecha_estimada) {
+        const servicio = rawServicios.find(s => String(s.id_servicio) === value)
+        if (servicio) actualizada.fecha_estimada = addDaysToDateStr(bogotaTodayStr(), servicio.duracion)
+      }
+      return actualizada
+    }))
 
   const totalVenta = ventaLineas.reduce((sum, l) => sum + (Number(l.precio) || 0), 0)
 
@@ -170,10 +184,11 @@ export function useAppointmentSaleForm({ refresh }: Params) {
           body: JSON.stringify({
             observacion: ventaObs || undefined,
             servicios: ventaLineas.map(l => ({
-              id_servicio: Number(l.id_servicio),
-              id_marco:    l.id_marco ? Number(l.id_marco) : null,
-              precio:      Number(l.precio),
-              observacion: l.observacion || undefined,
+              id_servicio:    Number(l.id_servicio),
+              id_marco:       l.id_marco ? Number(l.id_marco) : null,
+              precio:         Number(l.precio),
+              fecha_estimada: l.fecha_estimada || null,
+              observacion:    l.observacion || undefined,
             })),
             plan_abonos,
           }),

@@ -1,11 +1,13 @@
 // ============================================================
 // src/features/appointments/hooks/useAppointments.ts
 // ============================================================
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { apiRequest } from '@/src/shared/lib/apiClient'
+import { useServerPagination } from '@/src/shared/hooks/useServerPagination'
 import type { Cita, CreateCitaDto, UpdateCitaDto, EstadoCita, BackendCita } from '../types'
 
-type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: unknown }
+type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: { total: number } }
+type Filters = { estado: string }
 
 // Orden de exhibición en selects/filtros — no es el orden de id_estado_cita
 // (Confirmada se agregó después, id 5, pero conceptualmente va 2ª en el
@@ -14,76 +16,70 @@ const ORDEN_ESTADOS = ['Pendiente', 'Confirmada', 'Completada', 'No Asistió', '
 const ordenarEstados = (estados: EstadoCita[]): EstadoCita[] =>
   [...estados].sort((a, b) => ORDEN_ESTADOS.indexOf(a.nombre) - ORDEN_ESTADOS.indexOf(b.nombre))
 
-export function useAppointments() {
-  const [citas, setCitas] = useState<Cita[]>([])
-  const [estadosCita, setEstadosCita] = useState<EstadoCita[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchAll = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const [citasRes, estadosRes] = await Promise.all([
-        apiRequest<ApiResponse<BackendCita[]>>('/api/appointments?limit=500'),
-        apiRequest<ApiResponse<EstadoCita[]>>('/api/appointment-status'),
-      ])
-
-      const normalized: Cita[] = (citasRes.data ?? []).map((item) => ({
-        id_cita:        item.id_cita,
-        fecha:          item.fecha,
-        hora:           item.hora,
-        id_cliente:     item.client?.id_cliente ?? 0,
-        id_estado_cita: item.appointmentStatus?.id_estado_cita ?? 1,
-        clienteNombre:  item.client?.nombre ?? `Cliente #${item.client?.id_cliente ?? '?'}`,
-        motivoCancelacion: item.motivo_cancelacion ?? null,
-        // Verde solo si la Venta sigue activa — una Venta anulada (ej. al
-        // cancelar la cita antes, o directo desde Ventas) no representa un
-        // flujo completado, así que no debería seguir mostrándose como tal.
-        tieneVenta:     item.sale != null && item.sale.estado === true,
-      }))
-
-      setCitas(normalized)
-      setEstadosCita(ordenarEstados(estadosRes.data ?? []))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar citas')
-    } finally {
-      setIsLoading(false)
-    }
+function normalizar(item: BackendCita): Cita {
+  return {
+    id_cita:        item.id_cita,
+    fecha:          item.fecha,
+    hora:           item.hora,
+    id_cliente:     item.client?.id_cliente ?? 0,
+    id_estado_cita: item.appointmentStatus?.id_estado_cita ?? 1,
+    clienteNombre:  item.client?.nombre ?? `Cliente #${item.client?.id_cliente ?? '?'}`,
+    motivoCancelacion: item.motivo_cancelacion ?? null,
+    // Verde solo si la Venta sigue activa — una Venta anulada (ej. al
+    // cancelar la cita antes, o directo desde Ventas) no representa un
+    // flujo completado, así que no debería seguir mostrándose como tal.
+    tieneVenta:     item.sale != null && item.sale.estado === true,
   }
+}
 
-  useEffect(() => { fetchAll() }, [])
+async function fetchCitasPage({ page, pageSize, q, filters }: {
+  page: number; pageSize: number; q: string; filters: Filters
+}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+  if (q) params.set('q', q)
+  if (filters.estado) params.set('estado', filters.estado)
+  const res = await apiRequest<ApiResponse<BackendCita[]>>(`/api/appointments?${params}`)
+  return { data: (res.data ?? []).map(normalizar), total: res.meta?.total ?? 0 }
+}
+
+export function useAppointments(filters: Filters) {
+  const sp = useServerPagination<Cita, Filters>({ fetchPage: fetchCitasPage, filters })
+
+  const [estadosCita, setEstadosCita] = useState<EstadoCita[]>([])
+  useEffect(() => {
+    apiRequest<ApiResponse<EstadoCita[]>>('/api/appointment-status')
+      .then(res => setEstadosCita(ordenarEstados(res.data ?? [])))
+      .catch(() => {})
+  }, [])
 
   const onCreate = async (data: CreateCitaDto) => {
     await apiRequest('/api/appointments', { method: 'POST', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onEdit = async (id: number, data: UpdateCitaDto) => {
     await apiRequest(`/api/appointments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onDelete = async (id: number) => {
     await apiRequest(`/api/appointments/${id}`, { method: 'DELETE' })
-    await fetchAll()
+    sp.refresh()
   }
 
-  // PATCH /api/appointment-status/cita/:id/estado  (endpoint especial del backend)
-  // Optimistic update — refresca solo la fila, sin recargar toda la lista.
   const onChangeStatus = async (id: number, id_estado_cita: number) => {
-    const anterior = citas.find(c => c.id_cita === id)?.id_estado_cita
-    setCitas(prev => prev.map(c => c.id_cita === id ? { ...c, id_estado_cita } : c))
-    try {
-      await apiRequest(`/api/appointment-status/cita/${id}/estado`, {
-        method: 'PATCH',
-        body: JSON.stringify({ id_estado_cita }),
-      })
-    } catch (e) {
-      setCitas(prev => prev.map(c => c.id_cita === id ? { ...c, id_estado_cita: anterior ?? id_estado_cita } : c))
-      throw e
-    }
+    await apiRequest(`/api/appointment-status/cita/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify({ id_estado_cita }),
+    })
+    sp.refresh()
   }
 
-  return { citas, estadosCita, isLoading, error, onCreate, onEdit, onDelete, onChangeStatus, refresh: fetchAll }
+  return {
+    citas: sp.items, estadosCita, isLoading: sp.isLoading, error: sp.error,
+    page: sp.page, setPage: sp.setPage, pageSize: sp.pageSize, setPageSize: sp.setPageSize,
+    total: sp.total, totalPages: sp.totalPages,
+    q: sp.q, setQ: sp.setQ,
+    onCreate, onEdit, onDelete, onChangeStatus, refresh: sp.refresh,
+  }
 }

@@ -1,10 +1,11 @@
 export type Pedido = {
-  id_detalle:   number
-  id_venta:     number
-  id_servicio:  number
-  id_estado:    number
-  id_marco:     number | null
-  fecha:        string
+  id_detalle:      number
+  id_venta:        number
+  id_servicio:     number
+  id_estado:       number
+  id_marco:        number | null
+  fecha:           string
+  fecha_estimada?: string | null
   observacion?: string
   precio:       number
   estado:       boolean
@@ -14,8 +15,9 @@ export type CreatePedidoDto = Omit<Pedido, 'id_detalle'>
 export type UpdatePedidoDto = Partial<CreatePedidoDto>
 
 export type BackendDetalle = {
-  id_detalle:    number
-  fecha:         string
+  id_detalle:      number
+  fecha:           string
+  fecha_estimada?: string | null
   precio:        number
   observacion?:  string
   estado:        boolean

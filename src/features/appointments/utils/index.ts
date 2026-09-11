@@ -30,7 +30,12 @@ export function badgeClassByName(nombre: string, index = 0): string {
     ?? FALLBACK_BADGE_COLORS[index % FALLBACK_BADGE_COLORS.length]
 }
 
-const ESTADO_ORDER: Record<number, number> = { 1: 0, 5: 1, 2: 2, 3: 3, 4: 4 }
+// Pendiente > Confirmada > Completada > Cancelada > No Asistió — mismo
+// criterio que el backend (AppointmentController.getAllAppointment) y que
+// "Tus citas" del portal cliente (estadoCitaPriority en account/utils.ts).
+// IDs fijos del seed: 1=Pendiente, 5=Confirmada, 2=Completada, 4=Cancelada,
+// 3=No Asistió.
+const ESTADO_ORDER: Record<number, number> = { 1: 0, 5: 1, 2: 2, 4: 3, 3: 4 }
 
 export function filterCitas(
   citas: Cita[],
@@ -52,9 +57,12 @@ export function filterCitas(
     const matchEstado = !filterEstado || String(c.id_estado_cita) === filterEstado
     return matchQ && matchEstado
   }).sort((a, b) => {
-    const fechaCmp = b.fecha.localeCompare(a.fecha)
-    if (fechaCmp !== 0) return fechaCmp
-    return (ESTADO_ORDER[a.id_estado_cita] ?? 9) - (ESTADO_ORDER[b.id_estado_cita] ?? 9)
+    // Primero por prioridad de estado (esto pisaba el orden que ya venía
+    // bien del backend porque acá se ordenaba por fecha primero) — dentro
+    // de cada estado, de la fecha más nueva a la más vieja.
+    const estadoCmp = (ESTADO_ORDER[a.id_estado_cita] ?? 9) - (ESTADO_ORDER[b.id_estado_cita] ?? 9)
+    if (estadoCmp !== 0) return estadoCmp
+    return b.fecha.localeCompare(a.fecha)
   })
 }
 

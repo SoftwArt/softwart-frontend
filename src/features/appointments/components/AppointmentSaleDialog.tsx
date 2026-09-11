@@ -8,6 +8,8 @@ import { Input } from '@/src/shared/components/ui/input'
 import { Checkbox } from '@/src/shared/components/ui/checkbox'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/src/shared/components/ui/tooltip'
 import { FieldErrorTooltip } from '@/src/shared/components/FieldErrorTooltip'
+import { DatePicker } from '@/src/shared/components/DatePicker'
+import { bogotaTodayStr } from '@/src/shared/lib/bogotaTime'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/src/shared/components/ui/dialog'
 import { PlusCircle, ShoppingCart, FileText, Trash, CreditCard } from 'lucide-react'
 
@@ -169,12 +171,28 @@ export function AppointmentSaleDialog({
                     <Trash className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <div className="col-span-12 flex flex-col gap-1">
+                <div className="col-span-5 flex flex-col gap-1">
+                  <label className="block text-xs text-muted-foreground mb-0.5" htmlFor={`srv-fecha-est-${i}`}>
+                    Fecha estimada
+                  </label>
+                  <DatePicker
+                    id={`srv-fecha-est-${i}`}
+                    value={linea.fecha_estimada}
+                    min={bogotaTodayStr()}
+                    onChange={v => onUpdateLinea(linea.id, 'fecha_estimada', v)}
+                    triggerClassName="flex h-8 w-full items-center justify-between gap-1 whitespace-nowrap rounded-md border border-border bg-card px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
+                <div className="col-span-7 flex flex-col gap-1">
+                  <label className="block text-xs text-muted-foreground mb-0.5" htmlFor={`srv-obs-${i}`}>
+                    Observación (opcional)
+                  </label>
                   <Input
-                    placeholder="Observación de este servicio (opcional)"
+                    id={`srv-obs-${i}`}
+                    placeholder="Observación de este servicio"
                     value={linea.observacion}
                     onChange={e => onUpdateLinea(linea.id, 'observacion', e.target.value)}
-                    className="h-7 text-xs bg-card border-border"
+                    className="h-8 text-xs bg-card border-border"
                   />
                 </div>
               </div>
@@ -199,7 +217,7 @@ export function AppointmentSaleDialog({
               este modal. El monto del primer abono nunca se teclea a mano
               — se deriva de num_abonos/% (misma fórmula que Ventas ->
               Gestionar abonos), acá solo se ve como preview informativo. */}
-          <div className="rounded-lg border border-border p-3 flex flex-col gap-3">
+          <div className="rounded-lg border border-border p-3 flex flex-col gap-3 mb-3">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="venta-config-abonos"
@@ -215,7 +233,7 @@ export function AppointmentSaleDialog({
             {configurarAbonos && (
               <div className="grid grid-cols-12 gap-3 pl-6">
                 <div className="col-span-3">
-                  <label className="block text-xs text-muted-foreground mb-1 whitespace-nowrap" htmlFor="venta-num-abonos">
+                  <label className="flex h-5 items-center text-xs text-muted-foreground mb-1 whitespace-nowrap" htmlFor="venta-num-abonos">
                     Número de abonos <span className="text-destructive">*</span>
                   </label>
                   <FieldErrorTooltip error={errors.numAbonos}>
@@ -230,8 +248,8 @@ export function AppointmentSaleDialog({
                 </div>
 
                 <div className="col-span-5">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs text-muted-foreground" htmlFor="venta-primer-abono">
+                  <div className="flex h-5 items-center justify-between mb-1">
+                    <label className="text-xs text-muted-foreground" htmlFor="venta-primer-abono">
                       Primer abono <span className="text-destructive">*</span>
                     </label>
                     <div className="flex rounded-md border border-border overflow-hidden text-[11px]">
@@ -288,7 +306,7 @@ export function AppointmentSaleDialog({
                 </div>
 
                 <div className="col-span-4">
-                  <label className="block text-xs text-muted-foreground mb-1" htmlFor="venta-metodo-pago">
+                  <label className="flex h-5 items-center text-xs text-muted-foreground mb-1" htmlFor="venta-metodo-pago">
                     Método de pago <span className="text-destructive">*</span>
                   </label>
                   <FieldErrorTooltip error={errors.idMetodoPago}>
@@ -335,8 +353,13 @@ export function AppointmentSaleDialog({
           {/* Total + confirmar — shrink-0 en los botones y tabular-nums en el
               total: antes, al pasar el precio de $0 a un número con más
               dígitos, el total empujaba el grupo de botones y lo comprimía
-              (el texto de "Crear cotización" alcanzaba a envolver). */}
-          <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
+              (el texto de "Crear cotización" alcanzaba a envolver).
+              sticky bottom-0: el DialogContent es el mismo elemento que
+              scrollea (overflow-y-auto) y tiene padding p-6 — las márgenes
+              negativas cancelan ese padding para que la barra llegue de
+              borde a borde, y bg-background la hace opaca sobre el
+              contenido que sigue scrolleando detrás. */}
+          <div className="sticky bottom-0 -mx-6 -mb-6 flex items-center justify-between gap-3 border-t border-b border-border bg-background px-6 pt-2 pb-6">
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Total</p>
               <p className="text-xl font-bold text-foreground tabular-nums truncate">{fmtCOP(total)}</p>

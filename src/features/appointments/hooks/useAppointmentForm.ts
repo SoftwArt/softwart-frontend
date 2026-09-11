@@ -1,21 +1,22 @@
 // src/features/appointments/hooks/useAppointmentForm.ts
-import { useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import type { Cita, EstadoCita } from '../types'
 import { todayStr, validateFecha, isCitaOcupaSlot } from '../utils'
 import { isWithinBusinessHours } from '@/src/shared/lib/businessHours'
 import { withToast } from '@/src/shared/lib/withToast'
+import { apiRequest } from '@/src/shared/lib/apiClient'
 import type { BookedSlot } from '@/src/shared/components/TimePicker'
 
 type CreateEditData = { id_cliente: number; fecha: string; hora: string; id_estado_cita: number }
+type CitaDelDiaLike = { id_cita: number; fecha: string; hora: string; id_estado_cita: number; clienteNombre: string }
 
 type Params = {
-  citas: Cita[]
   estadosCita: EstadoCita[]
   onCreate: (data: CreateEditData) => Promise<unknown>
   onEdit: (id: number, data: CreateEditData) => Promise<unknown>
 }
 
-export function useAppointmentForm({ citas, estadosCita, onCreate, onEdit }: Params) {
+export function useAppointmentForm({ estadosCita, onCreate, onEdit }: Params) {
   const [isFormOpen,   setIsFormOpen]   = useState(false)
   const [editingId,    setEditingId]    = useState<number | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -47,14 +48,35 @@ export function useAppointmentForm({ citas, estadosCita, onCreate, onEdit }: Par
     setIsFormOpen(true)
   }
 
+  // Citas del día seleccionado — se traen aparte (no de la lista paginada de
+  // la página, que puede no incluir todas las citas de esa fecha) para
+  // calcular los horarios ya ocupados correctamente.
+  const [citasDelDia, setCitasDelDia] = useState<CitaDelDiaLike[]>([])
+  useEffect(() => {
+    if (!fecha) { setCitasDelDia([]); return }
+    let cancelled = false
+    apiRequest<{ data: { id_cita: number; fecha: string; hora: string; appointmentStatus?: { id_estado_cita: number }; client?: { nombre?: string } }[] }>(
+      `/api/appointments?fecha=${fecha}&limit=100`
+    )
+      .then(res => {
+        if (cancelled) return
+        setCitasDelDia((res.data ?? []).map(c => ({
+          id_cita: c.id_cita,
+          fecha: c.fecha,
+          hora: c.hora,
+          id_estado_cita: c.appointmentStatus?.id_estado_cita ?? 1,
+          clienteNombre: c.client?.nombre ?? '',
+        })))
+      })
+      .catch(() => { if (!cancelled) setCitasDelDia([]) })
+    return () => { cancelled = true }
+  }, [fecha])
+
   // Cancelada/No Asistió liberan la celda — mismo criterio que la
   // disponibilidad del portal cliente (backend `appointmentAvailability`).
-  const bookedSlots: BookedSlot[] = useMemo(() => {
-    if (!fecha) return []
-    return citas
-      .filter(c => c.fecha === fecha && c.id_cita !== editingId && isCitaOcupaSlot(estadosCita, c.id_estado_cita))
-      .map((c): BookedSlot => ({ hora: c.hora, clienteNombre: c.clienteNombre, id_cita: c.id_cita }))
-  }, [citas, fecha, editingId, estadosCita])
+  const bookedSlots: BookedSlot[] = citasDelDia
+    .filter(c => c.id_cita !== editingId && isCitaOcupaSlot(estadosCita, c.id_estado_cita))
+    .map((c): BookedSlot => ({ hora: c.hora, clienteNombre: c.clienteNombre, id_cita: c.id_cita }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

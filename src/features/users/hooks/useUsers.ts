@@ -1,72 +1,60 @@
 // ============================================================
 // src/features/users/hooks/useUsers.ts
-// OPTIMISTIC UPDATE en onToggleStatus — sin skeleton, sin salto
 // ============================================================
-import { useState, useEffect } from 'react'
 import { apiRequest } from '@/src/shared/lib/apiClient'
+import { useServerPagination } from '@/src/shared/hooks/useServerPagination'
 import type { Usuario, CreateUsuarioDto, UpdateUsuarioDto, BackendUsuario } from '../types'
 
-type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: unknown }
+type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: { total: number } }
+type Filters = { rol: string; estado: string }
 
-export function useUsers() {
-  const [usuarios,  setUsuarios]  = useState<Usuario[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error,     setError]     = useState<string | null>(null)
+async function fetchUsuariosPage({ page, pageSize, q, filters }: {
+  page: number; pageSize: number; q: string; filters: Filters
+}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+  if (q) params.set('q', q)
+  if (filters.rol)    params.set('rol', filters.rol)
+  if (filters.estado) params.set('estado', filters.estado)
+  const res = await apiRequest<ApiResponse<BackendUsuario[]>>(`/api/users?${params}`)
+  const data: Usuario[] = (res.data ?? []).map((u) => ({
+    id_usuario:    u.id_usuario,
+    correo:        u.correo,
+    clave:         '',
+    estado:        u.estado,
+    id_rol:        u.role?.id_rol ?? 0,
+    es_admin_base: u.es_admin_base ?? false,
+  }))
+  return { data, total: res.meta?.total ?? 0 }
+}
 
-  const fetchAll = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const res = await apiRequest<ApiResponse<BackendUsuario[]>>('/api/users?limit=500')
-      setUsuarios(
-        (res.data ?? []).map((u) => ({
-          id_usuario:    u.id_usuario,
-          correo:        u.correo,
-          clave:         '',
-          estado:        u.estado,
-          id_rol:        u.role?.id_rol ?? 0,
-          es_admin_base: u.es_admin_base ?? false,
-        }))
-      )
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar usuarios')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchAll() }, [])
+export function useUsers(filters: Filters) {
+  const sp = useServerPagination<Usuario, Filters>({ fetchPage: fetchUsuariosPage, filters })
 
   const onCreate = async (data: CreateUsuarioDto) => {
     await apiRequest('/api/users', { method: 'POST', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onEdit = async (id: number, data: UpdateUsuarioDto) => {
     await apiRequest(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onDelete = async (id: number) => {
     await apiRequest(`/api/users/${id}`, { method: 'DELETE' })
-    await fetchAll()
+    sp.refresh()
   }
 
-  // OPTIMISTIC UPDATE — sin fetchAll, sin skeleton
   const onToggleStatus = async (id: number) => {
-    setUsuarios((prev) =>
-      prev.map((u) => u.id_usuario === id ? { ...u, estado: !u.estado } : u)
-    )
-    try {
-      await apiRequest(`/api/users/${id}/estado`, { method: 'PATCH' })
-    } catch (e) {
-      // Revertir si falla
-      setUsuarios((prev) =>
-        prev.map((u) => u.id_usuario === id ? { ...u, estado: !u.estado } : u)
-      )
-      throw e
-    }
+    await apiRequest(`/api/users/${id}/estado`, { method: 'PATCH' })
+    sp.refresh()
   }
 
-  return { usuarios, isLoading, error, onCreate, onEdit, onDelete, onToggleStatus }
+  return {
+    usuarios: sp.items, isLoading: sp.isLoading, error: sp.error,
+    page: sp.page, setPage: sp.setPage, pageSize: sp.pageSize, setPageSize: sp.setPageSize,
+    total: sp.total, totalPages: sp.totalPages,
+    q: sp.q, setQ: sp.setQ,
+    onCreate, onEdit, onDelete, onToggleStatus,
+  }
 }

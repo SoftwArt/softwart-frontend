@@ -4,10 +4,10 @@ import { Wrench } from 'lucide-react'
 import { SearchInput } from '@/src/shared/components/SearchInput'
 import { usePagination } from '@/src/shared/hooks/usePagination'
 import { Skeleton } from '@/src/shared/components/ui/skeleton'
-import { filterServiciosCuenta } from '../utils'
-import { ServiciosTimeline } from './ServiciosTimeline'
-import { useServiceHistory } from '../hooks/useServiceHistory'
+import { filterServiciosCuenta, groupServiciosByPedido } from '../utils'
+import { PedidoServiciosCard } from './PedidoServiciosCard'
 import { StickyPagination } from './StickyPagination'
+import { useServiceHistory } from '../hooks/useServiceHistory'
 import type { AccountOutletContext } from './AccountLayout'
 
 export function ServiciosPage() {
@@ -15,8 +15,12 @@ export function ServiciosPage() {
   const [query, setQuery] = useState('')
   const { expandedId, historyById, historyLoadingId, toggleHistory } = useServiceHistory()
 
+  // Se filtra a nivel de servicio individual (mismo criterio de siempre) y
+  // LUEGO se agrupa por pedido — un pedido cuyos servicios no matchean la
+  // búsqueda simplemente desaparece de la lista, ninguno queda a medias.
   const filtered = useMemo(() => filterServiciosCuenta(servicios, query), [servicios, query])
-  const pagination = usePagination(filtered)
+  const pedidos  = useMemo(() => groupServiciosByPedido(filtered), [filtered])
+  const pagination = usePagination(pedidos)
 
   // La lista scrollea en su propio espacio (flex-1 overflow-y-auto) para
   // que StickyPagination quede siempre en el mismo lugar exacto, sin
@@ -46,21 +50,26 @@ export function ServiciosPage() {
               <Wrench className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
               <p className="text-muted-foreground">Aún no tienes servicios registrados.</p>
             </div>
-          ) : filtered.length === 0 ? (
+          ) : pedidos.length === 0 ? (
             <p className="text-center text-muted-foreground py-10">Sin resultados para "{query}".</p>
           ) : (
-            <ServiciosTimeline
-              servicios={pagination.paginated}
-              expandedId={expandedId}
-              historyById={historyById}
-              historyLoadingId={historyLoadingId}
-              onToggleHistory={toggleHistory}
-            />
+            <div className="space-y-6">
+              {pagination.paginated.map(pedido => (
+                <PedidoServiciosCard
+                  key={pedido.id_venta ?? `sin-pedido-${pedido.servicios[0]?.id_detalle}`}
+                  pedido={pedido}
+                  expandedId={expandedId}
+                  historyById={historyById}
+                  historyLoadingId={historyLoadingId}
+                  onToggleHistory={toggleHistory}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>
 
-      {!isLoading && filtered.length > 0 && (
+      {!isLoading && pedidos.length > 0 && (
         <StickyPagination
           page={pagination.page}
           totalPages={pagination.totalPages}

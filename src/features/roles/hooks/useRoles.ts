@@ -1,46 +1,46 @@
 // src/features/roles/hooks/useRoles.ts
-import { useState, useEffect } from 'react'
 import { apiRequest } from '@/src/shared/lib/apiClient'
+import { useServerPagination } from '@/src/shared/hooks/useServerPagination'
 import type { Rol, CreateRolDto, UpdateRolDto } from '../types'
 
-type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: unknown }
+type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: { total: number } }
+type Filters = { estado: string }
 
-export function useRoles() {
-  const [roles, setRoles] = useState<Rol[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+async function fetchRolesPage({ page, pageSize, q, filters }: {
+  page: number; pageSize: number; q: string; filters: Filters
+}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+  if (q) params.set('q', q)
+  if (filters.estado) params.set('estado', filters.estado)
+  const res = await apiRequest<ApiResponse<Rol[]>>(`/api/roles?${params}`)
+  return { data: res.data ?? [], total: res.meta?.total ?? 0 }
+}
 
-  const fetchAll = async () => {
-    setIsLoading(true); setError(null)
-    try {
-      const res = await apiRequest<ApiResponse<Rol[]>>('/api/roles?limit=500')
-      setRoles(res.data ?? [])
-    } catch (e) { setError(e instanceof Error ? e.message : 'Error') }
-    finally { setIsLoading(false) }
-  }
-
-  useEffect(() => { fetchAll() }, [])
+export function useRoles(filters: Filters) {
+  const sp = useServerPagination<Rol, Filters>({ fetchPage: fetchRolesPage, filters })
 
   const onCreate = async (data: CreateRolDto) => {
     await apiRequest('/api/roles', { method: 'POST', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
   const onEdit = async (id: number, data: UpdateRolDto) => {
     await apiRequest(`/api/roles/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
   const onDelete = async (id: number) => {
     await apiRequest(`/api/roles/${id}`, { method: 'DELETE' })
-    await fetchAll()
+    sp.refresh()
   }
   const onToggleStatus = async (id: number) => {
-    setRoles(prev => prev.map(r => r.id_rol === id ? { ...r, estado: !r.estado } : r))
-    try { await apiRequest(`/api/roles/${id}/estado`, { method: 'PATCH' }) }
-    catch (e) {
-      setRoles(prev => prev.map(r => r.id_rol === id ? { ...r, estado: !r.estado } : r))
-      throw e
-    }
+    await apiRequest(`/api/roles/${id}/estado`, { method: 'PATCH' })
+    sp.refresh()
   }
 
-  return { roles, isLoading, error, onCreate, onEdit, onDelete, onToggleStatus }
+  return {
+    roles: sp.items, isLoading: sp.isLoading, error: sp.error,
+    page: sp.page, setPage: sp.setPage, pageSize: sp.pageSize, setPageSize: sp.setPageSize,
+    total: sp.total, totalPages: sp.totalPages,
+    q: sp.q, setQ: sp.setQ,
+    onCreate, onEdit, onDelete, onToggleStatus,
+  }
 }

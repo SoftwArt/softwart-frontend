@@ -36,7 +36,7 @@ export function UsersTable({
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[50%]">Correo</TableHead>
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[18%]">Rol</TableHead>
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[14%]">Estado</TableHead>
-              <TableHead className="text-right text-xs font-semibold tracking-wide text-muted-foreground w-[18%]">Acciones</TableHead>
+              <TableHead className="text-center text-xs font-semibold tracking-wide text-muted-foreground w-36">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

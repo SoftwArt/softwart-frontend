@@ -15,13 +15,17 @@ export function InstallmentPlanProgress({ estado }: InstallmentPlanProgressProps
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>Pagado: {formatCurrency(estado.total_pagado)}</span>
-          <span>Saldo: {formatCurrency(estado.saldo_pendiente)}</span>
         </div>
         <div className="h-2 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-primary transition-all"
             style={{ width: `${Math.min(100, estado.total_pagado / estado.total * 100)}%` }}
           />
+        </div>
+        <div className="flex justify-between items-baseline">
+          <span className="text-sm font-semibold text-primary">
+            Saldo pendiente: {formatCurrency(estado.saldo_pendiente)}
+          </span>
         </div>
       </div>
 

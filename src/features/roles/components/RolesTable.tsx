@@ -32,7 +32,7 @@ export function RolesTable({
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[22%]">Nombre</TableHead>
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[42%]">Descripción</TableHead>
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[14%]">Estado</TableHead>
-              <TableHead className="text-right text-xs font-semibold tracking-wide text-muted-foreground w-[22%]">Acciones</TableHead>
+              <TableHead className="text-center text-xs font-semibold tracking-wide text-muted-foreground w-36">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

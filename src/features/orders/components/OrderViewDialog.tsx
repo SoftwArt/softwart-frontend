@@ -26,6 +26,7 @@ export function OrderViewDialog({ open, onOpenChange, pedido, estados, ventasOpt
         { label: 'Servicio',    value: serviciosOpts.find(o => o.value === String(pedido.id_servicio))?.label ?? `#${pedido.id_servicio}` },
         { label: 'Marco',       value: pedido.id_marco ? (marcosOpts.find(o => o.value === String(pedido.id_marco))?.label ?? `#${pedido.id_marco}`) : '—' },
         { label: 'Fecha',       value: formatDate(pedido.fecha) },
+        { label: 'Fecha estimada', value: pedido.fecha_estimada ? formatDate(pedido.fecha_estimada) : '—' },
         { label: 'Precio',      value: formatCurrency(pedido.precio) },
         { label: 'Observación', value: pedido.observacion, fullWidth: true },
         {

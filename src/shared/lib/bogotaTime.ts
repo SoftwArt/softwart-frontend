@@ -44,6 +44,16 @@ export function bogotaMaxFuturoStr(mesesAdelante = 3): string {
   return `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
 }
 
+// 'YYYY-MM-DD' + N días, en calendario puro (sin horas/zona horaria — la
+// entrada ya es una fecha naive tipo las de DatePicker). Usado para sugerir
+// la fecha estimada de un servicio a partir de fecha + duración (días).
+export function addDaysToDateStr(dateStr: string, days: number): string {
+  const [y, mo, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, mo - 1, d)
+  date.setDate(date.getDate() + days)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
 // Epoch ms real de "ahora" — para comparaciones de precisión horaria.
 export function bogotaNowMs(): number {
   const { y, mo, d, h, mi, s } = bogotaParts(new Date())

@@ -1,28 +1,21 @@
 // src/features/roles/components/RolesPage.tsx
 import { useRoles } from '../hooks/useRoles'
 import { useRoleForm } from '../hooks/useRoleForm'
-import { useState, useMemo } from 'react'
-import { Plus } from 'lucide-react'
-import { Button }   from '@/src/shared/components/ui/button'
+import { useState } from 'react'
 import { Skeleton } from '@/src/shared/components/ui/skeleton'
 import { EmptyState }    from '@/src/shared/components/EmptyState'
-import { SearchInput }   from '@/src/shared/components/SearchInput'
-import { FilterBar }     from '@/src/shared/components/FilterBar'
-import { usePagination } from '@/src/shared/hooks/usePagination'
+import { CrudToolbar }   from '@/src/shared/components/CrudToolbar'
 import type { Rol } from '../types'
-import { filterRoles } from '../utils'
 import { RolesTable } from './RolesTable'
 import { RoleFormDialog } from './RoleFormDialog'
 import { RoleViewDialog } from './RoleViewDialog'
 
 export function RolesPage() {
-  const { roles, isLoading, onCreate, onEdit, onDelete, onToggleStatus } = useRoles()
-
-  const [q,            setQ]            = useState('')
   const [filterEstado, setFilterEstado] = useState('')
-
-  const filtered = useMemo(() => filterRoles(roles, q, filterEstado), [roles, q, filterEstado])
-  const { paginated, page, setPage, totalPages, total, pageSize, setPageSize } = usePagination(filtered)
+  const {
+    roles, isLoading, total, page, setPage, totalPages, pageSize, setPageSize, q, setQ,
+    onCreate, onEdit, onDelete, onToggleStatus,
+  } = useRoles({ estado: filterEstado })
 
   const [isViewOpen,  setIsViewOpen]  = useState(false)
   const [viewingItem, setViewingItem] = useState<Rol | null>(null)
@@ -32,42 +25,40 @@ export function RolesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-3xl text-secondary">Roles</h1>
-          <p className="text-muted-foreground">Gestiona los roles del sistema</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <SearchInput value={q} onChange={setQ} placeholder="Buscar nombre o descripción..." className="w-64" />
-          <Button onClick={form.openCreate} className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0">
-            <Plus className="mr-2 h-4 w-4" />Registrar Rol
-          </Button>
-        </div>
+      <div>
+        <h1 className="font-serif text-3xl text-secondary">Roles</h1>
+        <p className="text-muted-foreground">Gestiona los roles del sistema</p>
       </div>
 
-      <FilterBar
-        filters={[
-          { key: 'estado', label: 'Estado', type: 'chips', value: filterEstado, onChange: setFilterEstado,
-            options: [{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }] },
-        ]}
-        onClear={() => setFilterEstado('')}
-      />
-
-      {isLoading ? (
-        <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={`sk-${i}`} className="h-12 w-full rounded-md" />)}</div>
-      ) : filtered.length === 0 ? (
-        <EmptyState title="Sin resultados" description="No hay roles que coincidan." />
-      ) : (
-        <RolesTable
-          roles={paginated}
-          page={page} totalPages={totalPages} total={total} pageSize={pageSize}
-          onPageChange={setPage} onPageSizeChange={setPageSize}
-          onView={openView}
-          onEdit={form.openEdit}
-          onToggleStatus={onToggleStatus}
-          onDelete={onDelete}
+      <div className="flex flex-col gap-2">
+        <CrudToolbar
+          searchValue={q} onSearchChange={setQ}
+          searchPlaceholder="Buscar nombre o descripción..."
+          filters={[
+            { key: 'estado', label: 'Estado', type: 'chips', value: filterEstado, onChange: setFilterEstado,
+              options: [{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }] },
+          ]}
+          onClearFilters={() => setFilterEstado('')}
+          createLabel="Registrar Rol"
+          onCreate={form.openCreate}
         />
-      )}
+
+        {isLoading ? (
+          <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={`sk-${i}`} className="h-12 w-full rounded-md" />)}</div>
+        ) : total === 0 ? (
+          <EmptyState title="Sin resultados" description="No hay roles que coincidan." />
+        ) : (
+          <RolesTable
+            roles={roles}
+            page={page} totalPages={totalPages} total={total} pageSize={pageSize}
+            onPageChange={setPage} onPageSizeChange={setPageSize}
+            onView={openView}
+            onEdit={form.openEdit}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
+        )}
+      </div>
 
       {viewingItem && (
         <RoleViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} rol={viewingItem} />

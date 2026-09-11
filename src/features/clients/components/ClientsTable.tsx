@@ -34,7 +34,7 @@ export function ClientsTable({
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[24%]">Correo</TableHead>
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[14%]">Teléfono</TableHead>
               <TableHead className="text-xs font-semibold tracking-wide text-muted-foreground w-[12%]">Estado</TableHead>
-              <TableHead className="text-right text-xs font-semibold tracking-wide text-muted-foreground w-[14%]">Acciones</TableHead>
+              <TableHead className="text-center text-xs font-semibold tracking-wide text-muted-foreground w-36">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

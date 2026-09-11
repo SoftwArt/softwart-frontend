@@ -50,14 +50,22 @@ export function buildQuotePdf({
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
   const hoy = new Date()
-  const fechaEmision = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`
+  const fmtDDMMYYYY = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  const fechaEmision = fmtDDMMYYYY(hoy)
+  // La cotización es un documento de un solo uso (no se persiste, ver nota
+  // arriba) — la validez de 15 días se calcula al vuelo cada vez que se
+  // genera el PDF, no hay nada que expirar en base de datos.
+  const vencimiento = new Date(hoy)
+  vencimiento.setDate(vencimiento.getDate() + 15)
+  const fechaVencimiento = fmtDDMMYYYY(vencimiento)
   doc.text(`Fecha de emisión: ${fechaEmision}`, 14, 45)
-  doc.text(`Cliente: ${clienteLabel}`, 14, 51)
-  doc.text(`Cita #${cita.id_cita} · ${formatDate(cita.fecha)} ${formatTime(cita.hora)}`, 14, 57)
+  doc.text(`Válida hasta: ${fechaVencimiento}`, 14, 51)
+  doc.text(`Cliente: ${clienteLabel}`, 14, 57)
+  doc.text(`Cita #${cita.id_cita} · ${formatDate(cita.fecha)} ${formatTime(cita.hora)}`, 14, 63)
 
   // ── Tabla de líneas ───────────────────────────────────────────────────
   autoTable(doc, {
-    startY: 64,
+    startY: 70,
     head: [['Servicio', 'Marco', 'Observación', 'Subtotal']],
     body: lineas.map(l => [
       labelDe(serviciosOpts, l.id_servicio),
@@ -73,7 +81,7 @@ export function buildQuotePdf({
   })
 
   // ── Observación general + nota legal ─────────────────────────────────
-  const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 64
+  const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70
   let y = finalY + 10
   if (observacion.trim()) {
     doc.setFont('helvetica', 'bold')

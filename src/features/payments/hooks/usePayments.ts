@@ -1,110 +1,86 @@
 // ============================================================
 // src/features/payments/hooks/usePayments.ts
-//
-// BUGs corregidos:
-// 1. onChangeStatus: usaba PUT /api/payments/:id — INCORRECTO.
-//    Endpoint correcto: PATCH /api/payment-status/pago/:id/estado
-// 2. onChangeMethod: usaba PUT /api/payments/:id — INCORRECTO.
-//    Endpoint correcto: PATCH /api/payment-methods/pago/:id/metodo
-// 3. body en onCreate/onEdit sin JSON.stringify.
 // ============================================================
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { apiRequest } from '@/src/shared/lib/apiClient'
+import { useServerPagination } from '@/src/shared/hooks/useServerPagination'
 import type { Pago, MetodoPago, EstadoPago, CreatePagoDto, UpdatePagoDto, BackendPago } from '../types'
 
-type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: unknown }
+type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: { total: number } }
+type Filters = { metodo: string; estado: string }
 
-export function usePayments() {
-  const [pagos,       setPagos]       = useState<Pago[]>([])
+async function fetchPagosPage({ page, pageSize, q, filters }: {
+  page: number; pageSize: number; q: string; filters: Filters
+}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+  if (q) params.set('q', q)
+  if (filters.metodo) params.set('metodo', filters.metodo)
+  if (filters.estado) params.set('estado', filters.estado)
+  const res = await apiRequest<ApiResponse<BackendPago[]>>(`/api/payments?${params}`)
+  const data: Pago[] = (res.data ?? []).map((item) => ({
+    id_pago:        item.id_pago,
+    fecha:          item.fecha,
+    monto:          item.monto,
+    observacion:    item.observacion,
+    id_venta:       item.sale?.id_venta               ?? 0,
+    id_metodo_pago: item.paymentMethod?.id_metodo_pago ?? 0,
+    id_estado_pago: item.paymentStatus?.id_estado_pago ?? 0,
+  }))
+  return { data, total: res.meta?.total ?? 0 }
+}
+
+export function usePayments(filters: Filters) {
+  const sp = useServerPagination<Pago, Filters>({ fetchPage: fetchPagosPage, filters })
+
+  // Catálogos chicos (no paginados) — se cargan una vez, aparte de la lista.
   const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([])
   const [estadosPago, setEstadosPago] = useState<EstadoPago[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchAll = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const [p, m, e] = await Promise.all([
-        apiRequest<ApiResponse<BackendPago[]>>('/api/payments?limit=500'),
-        apiRequest<ApiResponse<MetodoPago[]>>('/api/payment-methods'),
-        apiRequest<ApiResponse<EstadoPago[]>>('/api/payment-status'),
-      ])
-
-      const normalized: Pago[] = (p.data ?? []).map((item) => ({
-        id_pago:        item.id_pago,
-        fecha:          item.fecha,
-        monto:          item.monto,
-        observacion:    item.observacion,
-        id_venta:       item.sale?.id_venta               ?? 0,
-        id_metodo_pago: item.paymentMethod?.id_metodo_pago ?? 0,
-        id_estado_pago: item.paymentStatus?.id_estado_pago ?? 0,
-      }))
-
-      setPagos(normalized)
+  useEffect(() => {
+    Promise.all([
+      apiRequest<ApiResponse<MetodoPago[]>>('/api/payment-methods'),
+      apiRequest<ApiResponse<EstadoPago[]>>('/api/payment-status'),
+    ]).then(([m, e]) => {
       setMetodosPago(m.data ?? [])
       setEstadosPago(e.data ?? [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar pagos')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchAll() }, [])
+    }).catch(() => {})
+  }, [])
 
   const onCreate = async (data: CreatePagoDto) => {
-    await apiRequest('/api/payments', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-    await fetchAll()
+    await apiRequest('/api/payments', { method: 'POST', body: JSON.stringify(data) })
+    sp.refresh()
   }
 
   const onEdit = async (id: number, data: UpdatePagoDto) => {
-    await apiRequest(`/api/payments/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    })
-    await fetchAll()
+    await apiRequest(`/api/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+    sp.refresh()
   }
 
   const onDelete = async (id: number) => {
     await apiRequest(`/api/payments/${id}`, { method: 'DELETE' })
-    await fetchAll()
+    sp.refresh()
   }
 
-  // PATCH /api/payment-status/pago/:id/estado  — endpoint específico del backend
-  // Optimistic update — refresca solo la fila, sin recargar toda la lista.
   const onChangeStatus = async (id: number, id_estado_pago: number) => {
-    const prev = pagos.find(p => p.id_pago === id)?.id_estado_pago
-    setPagos(ps => ps.map(p => p.id_pago === id ? { ...p, id_estado_pago } : p))
-    try {
-      await apiRequest(`/api/payment-status/pago/${id}/estado`, {
-        method: 'PATCH',
-        body: JSON.stringify({ id_estado_pago }),
-      })
-    } catch (e) {
-      if (prev !== undefined)
-        setPagos(ps => ps.map(p => p.id_pago === id ? { ...p, id_estado_pago: prev } : p))
-      throw e
-    }
+    await apiRequest(`/api/payment-status/pago/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify({ id_estado_pago }),
+    })
+    sp.refresh()
   }
 
-  // PATCH /api/payment-methods/pago/:id/metodo  — optimistic update, sin fetchAll
   const onChangeMethod = async (id: number, id_metodo_pago: number) => {
-    const prev = pagos.find(p => p.id_pago === id)?.id_metodo_pago
-    setPagos(ps => ps.map(p => p.id_pago === id ? { ...p, id_metodo_pago } : p))
-    try {
-      await apiRequest(`/api/payment-methods/pago/${id}/metodo`, {
-        method: 'PATCH',
-        body: JSON.stringify({ id_metodo_pago }),
-      })
-    } catch {
-      if (prev !== undefined)
-        setPagos(ps => ps.map(p => p.id_pago === id ? { ...p, id_metodo_pago: prev } : p))
-    }
+    await apiRequest(`/api/payment-methods/pago/${id}/metodo`, {
+      method: 'PATCH',
+      body: JSON.stringify({ id_metodo_pago }),
+    })
+    sp.refresh()
   }
 
-  return { pagos, metodosPago, estadosPago, isLoading, error, onCreate, onEdit, onDelete, onChangeStatus, onChangeMethod }
+  return {
+    pagos: sp.items, metodosPago, estadosPago, isLoading: sp.isLoading, error: sp.error,
+    page: sp.page, setPage: sp.setPage, pageSize: sp.pageSize, setPageSize: sp.setPageSize,
+    total: sp.total, totalPages: sp.totalPages,
+    q: sp.q, setQ: sp.setQ,
+    onCreate, onEdit, onDelete, onChangeStatus, onChangeMethod,
+  }
 }

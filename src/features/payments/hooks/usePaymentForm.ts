@@ -4,20 +4,20 @@ import { useSearchParams } from 'react-router-dom'
 import type { EstadoPago, PagoStatusAlert } from '../types'
 import { withToast } from '@/src/shared/lib/withToast'
 import { formatCurrency } from '@/src/shared/lib/formatCurrency'
+import { apiRequest } from '@/src/shared/lib/apiClient'
 import type { VentaOption } from '@/src/shared/hooks/useOptions'
 
 type PagoLike = { id_venta: number; id_estado_pago: number; monto: number }
 type CreateData = { id_venta: number; monto: number; fecha: string; id_metodo_pago: number; id_estado_pago: number }
 
 type Params = {
-  pagos: PagoLike[]
   estadosPago: EstadoPago[]
   rawVentas: VentaOption[]
   onCreate: (data: CreateData) => Promise<unknown>
   onAlert: (alert: PagoStatusAlert) => void
 }
 
-export function usePaymentForm({ pagos, estadosPago, rawVentas, onCreate, onAlert }: Params) {
+export function usePaymentForm({ estadosPago, rawVentas, onCreate, onAlert }: Params) {
   const [isFormOpen,   setIsFormOpen]   = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [idVenta,  setIdVentaRaw]  = useState('')
@@ -26,6 +26,19 @@ export function usePaymentForm({ pagos, estadosPago, rawVentas, onCreate, onAler
   const [idMetodo, setIdMetodo]    = useState('')
   const [idEstado, setIdEstado]    = useState('')
   const [errors,   setErrors]      = useState<Record<string, string>>({})
+
+  // Pagos de la Venta seleccionada — se traen aparte (no de la lista
+  // paginada de la página, que puede no incluir todos los pagos de esta
+  // Venta) para calcular saldo pendiente / próximo abono correctamente.
+  const [pagos, setPagos] = useState<PagoLike[]>([])
+  useEffect(() => {
+    if (!idVenta) { setPagos([]); return }
+    let cancelled = false
+    apiRequest<{ data: PagoLike[] }>(`/api/payments?venta=${idVenta}&limit=100`)
+      .then(res => { if (!cancelled) setPagos(res.data ?? []) })
+      .catch(() => { if (!cancelled) setPagos([]) })
+    return () => { cancelled = true }
+  }, [idVenta])
 
   const clearError = (field: string) => setErrors(prev => (prev[field] ? { ...prev, [field]: '' } : prev))
 

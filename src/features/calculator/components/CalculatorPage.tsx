@@ -2,29 +2,22 @@
 import { useCalculator } from '../hooks/useCalculator'
 import { useMarcoForm } from '../hooks/useMarcoForm'
 import { useMarcoCalculator } from '../hooks/useMarcoCalculator'
-import { useState, useMemo } from 'react'
-import { Plus } from 'lucide-react'
-import { Button }   from '@/src/shared/components/ui/button'
+import { useState } from 'react'
 import { Skeleton } from '@/src/shared/components/ui/skeleton'
-import { SearchInput } from '@/src/shared/components/SearchInput'
-import { FilterBar }   from '@/src/shared/components/FilterBar'
-import { usePagination } from '@/src/shared/hooks/usePagination'
+import { CrudToolbar } from '@/src/shared/components/CrudToolbar'
 import { EmptyState } from '@/src/shared/components/EmptyState'
 import type { Marco } from '../types'
-import { filterMarcos } from '../utils'
 import { MarcosTable } from './MarcosTable'
 import { MarcoFormDialog } from './MarcoFormDialog'
 import { MarcoViewDialog } from './MarcoViewDialog'
 import { MarcoCalculatorDialog } from './MarcoCalculatorDialog'
 
 export function CalculatorPage() {
-  const { marcos, isLoading, onCreate, onEdit, onDelete, onToggleStatus } = useCalculator()
-
-  const [q,            setQ]            = useState('')
   const [filterEstado, setFilterEstado] = useState('')
-
-  const filtered = useMemo(() => filterMarcos(marcos, q, filterEstado), [marcos, q, filterEstado])
-  const { paginated, page, setPage, totalPages, total, pageSize, setPageSize } = usePagination(filtered)
+  const {
+    marcos, isLoading, total, page, setPage, totalPages, pageSize, setPageSize, q, setQ,
+    onCreate, onEdit, onDelete, onToggleStatus,
+  } = useCalculator({ estado: filterEstado })
 
   const [isViewOpen,  setIsViewOpen]  = useState(false)
   const [viewingItem, setViewingItem] = useState<Marco | null>(null)
@@ -35,43 +28,41 @@ export function CalculatorPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-3xl text-secondary">Calculadora de Marcos</h1>
-          <p className="text-muted-foreground">Gestiona marcos y calcula precios</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <SearchInput value={q} onChange={setQ} placeholder="Buscar por código..." className="w-64" />
-          <Button onClick={form.openCreate} className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0">
-            <Plus className="mr-2 h-4 w-4" />Registrar Marco
-          </Button>
-        </div>
+      <div>
+        <h1 className="font-serif text-3xl text-secondary">Calculadora de Marcos</h1>
+        <p className="text-muted-foreground">Gestiona marcos y calcula precios</p>
       </div>
 
-      <FilterBar
-        filters={[
-          { key: 'estado', label: 'Estado', type: 'chips', value: filterEstado, onChange: setFilterEstado,
-            options: [{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }] },
-        ]}
-        onClear={() => setFilterEstado('')}
-      />
-
-      {isLoading ? (
-        <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={`sk-${i}`} className="h-12 w-full rounded-md" />)}</div>
-      ) : filtered.length === 0 ? (
-        <EmptyState title="Sin resultados" description="No hay marcos que coincidan." />
-      ) : (
-        <MarcosTable
-          marcos={paginated}
-          page={page} totalPages={totalPages} total={total} pageSize={pageSize}
-          onPageChange={setPage} onPageSizeChange={setPageSize}
-          onView={openView}
-          onEdit={form.openEdit}
-          onCalc={calc.openCalc}
-          onToggleStatus={onToggleStatus}
-          onDelete={onDelete}
+      <div className="flex flex-col gap-2">
+        <CrudToolbar
+          searchValue={q} onSearchChange={setQ}
+          searchPlaceholder="Buscar por código..."
+          filters={[
+            { key: 'estado', label: 'Estado', type: 'chips', value: filterEstado, onChange: setFilterEstado,
+              options: [{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }] },
+          ]}
+          onClearFilters={() => setFilterEstado('')}
+          createLabel="Registrar Marco"
+          onCreate={form.openCreate}
         />
-      )}
+
+        {isLoading ? (
+          <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={`sk-${i}`} className="h-12 w-full rounded-md" />)}</div>
+        ) : total === 0 ? (
+          <EmptyState title="Sin resultados" description="No hay marcos que coincidan." />
+        ) : (
+          <MarcosTable
+            marcos={marcos}
+            page={page} totalPages={totalPages} total={total} pageSize={pageSize}
+            onPageChange={setPage} onPageSizeChange={setPageSize}
+            onView={openView}
+            onEdit={form.openEdit}
+            onCalc={calc.openCalc}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
+        )}
+      </div>
 
       {viewingItem && (
         <MarcoViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} marco={viewingItem} />

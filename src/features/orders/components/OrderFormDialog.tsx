@@ -17,6 +17,7 @@ interface OrderFormDialogProps {
   idServicio: string; onIdServicioChange: (v: string) => void
   idMarco: string;    onIdMarcoChange:    (v: string) => void
   fecha: string;      onFechaChange:      (v: string) => void
+  fechaEstimada: string; onFechaEstimadaChange: (v: string) => void
   precio: string;     onPrecioChange:     (v: string) => void
   restanteDisponible: number
   observacion: string; onObservacionChange: (v: string) => void
@@ -33,6 +34,7 @@ export function OrderFormDialog({
   idServicio, onIdServicioChange,
   idMarco, onIdMarcoChange,
   fecha, onFechaChange,
+  fechaEstimada, onFechaEstimadaChange,
   precio, onPrecioChange, restanteDisponible,
   observacion, onObservacionChange,
   errors, isSubmitting, onSubmit, onCancel,
@@ -82,6 +84,18 @@ export function OrderFormDialog({
                 />
               </div>
             </FieldErrorTooltip>
+          </div>
+          <div>
+            <label className={labelCls} htmlFor="ped-fecha-estimada">
+              Fecha estimada
+              <span className="text-muted-foreground font-normal normal-case tracking-normal"> (sugerida según el servicio, editable)</span>
+            </label>
+            <DatePicker
+              id="ped-fecha-estimada"
+              value={fechaEstimada}
+              min={fecha || undefined}
+              onChange={onFechaEstimadaChange}
+            />
           </div>
           <div>
             <label className={labelCls} htmlFor="ped-precio">

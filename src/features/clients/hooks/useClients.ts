@@ -1,52 +1,51 @@
 // ============================================================
 // src/features/clients/hooks/useClients.ts
 // ============================================================
-import { useState, useEffect } from 'react'
 import { apiRequest } from '@/src/shared/lib/apiClient'
+import { useServerPagination } from '@/src/shared/hooks/useServerPagination'
 import type { Cliente, CreateClienteDto, UpdateClienteDto } from '../types'
 
-type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: unknown }
+type ApiResponse<T> = { success: boolean; message?: string; data: T; meta?: { total: number } }
+type Filters = { estado: string }
 
-export function useClients() {
-  const [clientes, setClientes] = useState<Cliente[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+async function fetchClientesPage({ page, pageSize, q, filters }: {
+  page: number; pageSize: number; q: string; filters: Filters
+}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(pageSize) })
+  if (q) params.set('q', q)
+  if (filters.estado) params.set('estado', filters.estado)
+  const res = await apiRequest<ApiResponse<Cliente[]>>(`/api/clients?${params}`)
+  return { data: res.data ?? [], total: res.meta?.total ?? 0 }
+}
 
-  const fetchAll = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const res = await apiRequest<ApiResponse<Cliente[]>>('/api/clients?limit=500')
-      setClientes(res.data ?? [])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar clientes')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchAll() }, [])
+export function useClients(filters: Filters) {
+  const sp = useServerPagination<Cliente, Filters>({ fetchPage: fetchClientesPage, filters })
 
   const onCreate = async (data: CreateClienteDto) => {
     await apiRequest('/api/clients', { method: 'POST', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onEdit = async (id: number, data: UpdateClienteDto) => {
     await apiRequest(`/api/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onDelete = async (id: number) => {
     await apiRequest(`/api/clients/${id}`, { method: 'DELETE' })
-    await fetchAll()
+    sp.refresh()
   }
 
   const onToggleStatus = async (id: number) => {
-    setClientes(prev => prev.map(c => c.id_cliente === id ? { ...c, estado: !c.estado } : c))
-    try { await apiRequest(`/api/clients/${id}/estado`, { method: 'PATCH' }) }
-    catch { setClientes(prev => prev.map(c => c.id_cliente === id ? { ...c, estado: !c.estado } : c)) }
+    await apiRequest(`/api/clients/${id}/estado`, { method: 'PATCH' })
+    sp.refresh()
   }
 
-  return { clientes, isLoading, error, onCreate, onEdit, onDelete, onToggleStatus }
+  return {
+    clientes: sp.items, isLoading: sp.isLoading, error: sp.error,
+    page: sp.page, setPage: sp.setPage, pageSize: sp.pageSize, setPageSize: sp.setPageSize,
+    total: sp.total, totalPages: sp.totalPages,
+    q: sp.q, setQ: sp.setQ,
+    onCreate, onEdit, onDelete, onToggleStatus,
+  }
 }
