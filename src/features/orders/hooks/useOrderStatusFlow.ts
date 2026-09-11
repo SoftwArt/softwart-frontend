@@ -48,13 +48,17 @@ export function useOrderStatusFlow({ estados, onChangeStatus, onDelete }: Params
   }
 
   const handleCambiarEstado = async (id: number, id_estadoSeleccionado: number, idEstadoActual?: number) => {
-    // Un servicio Finalizado ya se entregó — el único cambio de estado válido
-    // a partir de acá es cancelarlo, no "retroceder" a Sin empezar/En
-    // preparación. En vez de solo bloquear con un error, se redirige a la
-    // misma confirmación de cancelar (igual que Citas Completada / Pagos Validado).
+    // Un servicio Finalizado ya está listo en el taller (pero aún no se lo
+    // llevó el cliente) — desde ahí solo puede avanzar a Entregado o
+    // cancelarse, nunca "retroceder" a Sin empezar/En preparación. En vez de
+    // solo bloquear con un error, se redirige a la misma confirmación de
+    // cancelar (igual que Citas Completada / Pagos Validado) salvo que el
+    // destino elegido ya sea Entregado, que pasa directo.
+    const targetNombre = estadoNombre(estados, id_estadoSeleccionado).toLowerCase()
     const bloqueadoDesdeFinalizado = idEstadoActual !== undefined
       && isPedidoFinalizado(estados, idEstadoActual)
-      && !estadoNombre(estados, id_estadoSeleccionado).toLowerCase().includes('cancelado')
+      && !targetNombre.includes('cancelado')
+      && !targetNombre.includes('entregado')
     const id_estado = bloqueadoDesdeFinalizado && estadoCanceladoObj
       ? estadoCanceladoObj.id_estado
       : id_estadoSeleccionado
@@ -83,7 +87,7 @@ export function useOrderStatusFlow({ estados, onChangeStatus, onDelete }: Params
             .filter(d => d.id_detalle !== id)
             .filter(d => {
               const n = d.serviceStatus?.nombre?.toLowerCase() ?? ''
-              return !n.includes('finaliz') && !n.includes('cancel')
+              return !n.includes('finaliz') && !n.includes('entreg') && !n.includes('cancel')
             })
           if (hermanosActivos.length === 0 && pagosValidados) {
             setCancelTarget(prev => prev && prev.id === id ? {

@@ -62,12 +62,16 @@ export function groupServiciosByPedido(servicios: Servicio[]): PedidoServicios[]
   return Array.from(grupos.entries()).map(([id_venta, lista]) => {
     const fechas = lista.map(s => s.fecha).sort()
     const fechasEstimadas = lista.map(s => s.fecha_estimada).filter((f): f is string => !!f).sort()
+    // saldo_pendiente ya viene igual en todos los servicios de un mismo
+    // pedido (lo calcula el backend por venta) — basta con tomarlo del primero.
     return {
       id_venta,
-      fecha:          fechas[0],
-      total:          lista.reduce((sum, s) => sum + Number(s.precio), 0),
-      fecha_estimada: fechasEstimadas.length ? fechasEstimadas[fechasEstimadas.length - 1] : null,
-      servicios:      lista,
+      fecha:           fechas[0],
+      total:           lista.reduce((sum, s) => sum + Number(s.precio), 0),
+      fecha_estimada:  fechasEstimadas.length ? fechasEstimadas[fechasEstimadas.length - 1] : null,
+      saldo_pendiente: lista[0]?.saldo_pendiente ?? null,
+      todosEntregados: lista.every(s => s.estado.toLowerCase().includes('entreg')),
+      servicios:       lista,
     }
   })
   // Mismo orden que ya traía el backend (más reciente primero): los grupos
@@ -124,7 +128,8 @@ export function estadoCitaPriority(nombre?: string): number {
 export function estadoServicioBadgeClasses(estado: string): string {
   const s = estado.toLowerCase()
   if (s.includes('cancel'))   return 'bg-red-100 text-red-800'
-  if (s.includes('finaliz'))  return 'bg-emerald-100 text-emerald-800'
+  if (s.includes('entreg'))   return 'bg-emerald-100 text-emerald-800'
+  if (s.includes('finaliz'))  return 'bg-slate-200 text-slate-700'
   if (s.includes('preparac')) return 'bg-amber-100 text-amber-800'
   return 'bg-muted text-muted-foreground'
 }
@@ -134,7 +139,8 @@ export function estadoServicioBadgeClasses(estado: string): string {
 export function estadoDotClasses(estado: string): string {
   const s = estado.toLowerCase()
   if (s.includes('cancel'))   return 'bg-red-500'
-  if (s.includes('finaliz'))  return 'bg-emerald-500'
+  if (s.includes('entreg'))   return 'bg-emerald-500'
+  if (s.includes('finaliz'))  return 'bg-slate-500'
   if (s.includes('preparac')) return 'bg-amber-500'
   return 'bg-muted-foreground/40'
 }

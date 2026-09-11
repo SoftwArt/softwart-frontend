@@ -29,6 +29,11 @@ export type Servicio = {
   precio:      number
   observacion: string | null
   id_venta:    number | null
+  // Saldo pendiente del Pedido (Venta) al que pertenece este Servicio, ya
+  // calculado por el backend (myServices) — null si el servicio no está
+  // asociado a una venta. Es el mismo valor para todos los servicios de un
+  // mismo pedido (ver groupServiciosByPedido).
+  saldo_pendiente?: number | null
 }
 
 // Agrupación de Servicio por Pedido (id_venta) — solo de presentación, ver
@@ -39,6 +44,11 @@ export type PedidoServicios = {
   fecha:           string
   total:           number
   fecha_estimada:  string | null
+  saldo_pendiente: number | null
+  // true cuando TODOS los servicios del pedido ya están Entregado — a partir
+  // de acá "Entrega estimada" ya no es una fecha por venir, es un hecho
+  // consumado (ver PedidoServiciosCard.tsx).
+  todosEntregados: boolean
   servicios:       Servicio[]
 }
 

@@ -4,7 +4,7 @@
 // sin cambios), y sube a este nivel lo que es del Pedido como un todo: total,
 // fecha estimada de entrega (la más lejana entre sus servicios) y el CTA de
 // abonos (los pagos son del Pedido, no de cada servicio suelto).
-import { CreditCard } from 'lucide-react'
+import { CreditCard, CheckCircle2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { formatCurrency } from '@/src/shared/lib/formatCurrency'
 import { formatDate } from '@/src/shared/lib/formatDate'
@@ -29,9 +29,18 @@ export function PedidoServiciosCard({
           <p className="text-xs text-muted-foreground">Pedido del {formatDate(pedido.fecha)}</p>
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-0.5">
             <span className="text-lg font-semibold text-foreground">{formatCurrency(pedido.total)}</span>
-            {pedido.fecha_estimada && (
+            {pedido.todosEntregados ? (
+              <span className="flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Entregado
+              </span>
+            ) : pedido.fecha_estimada && (
               <span className="text-xs text-muted-foreground">
                 Entrega estimada: <span className="font-medium text-foreground">{formatDate(pedido.fecha_estimada)}</span>
+              </span>
+            )}
+            {pedido.saldo_pendiente != null && pedido.saldo_pendiente > 0 && (
+              <span className="text-xs text-muted-foreground">
+                Saldo pendiente: <span className="font-semibold text-primary">{formatCurrency(pedido.saldo_pendiente)}</span>
               </span>
             )}
           </div>

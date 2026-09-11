@@ -42,7 +42,9 @@ export function ServicioTimelineItem({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
               <span className="text-xs text-muted-foreground">{formatDate(servicio.fecha)}</span>
               <span className="text-xs font-medium text-primary">{formatCurrency(servicio.precio)}</span>
-              {servicio.fecha_estimada && (
+              {servicio.estado.toLowerCase().includes('entreg') ? (
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Entregado</span>
+              ) : servicio.fecha_estimada && (
                 <span className="text-xs text-muted-foreground">
                   Entrega estimada: <span className="font-medium text-foreground">{formatDate(servicio.fecha_estimada)}</span>
                 </span>

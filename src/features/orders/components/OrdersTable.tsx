@@ -1,6 +1,6 @@
 // src/features/orders/components/OrdersTable.tsx
 import type { Pedido, EstadoServicio } from '../types'
-import { badgeClassByName, estadoNombre, isPedidoCancelado, isPedidoFinalizado } from '../utils'
+import { badgeClassByName, estadoNombre, isPedidoCancelado, isPedidoFinalizado, isPedidoEntregado } from '../utils'
 import type { ComboboxOption } from '@/src/shared/components/Combobox'
 import type { VentaOption } from '@/src/shared/hooks/useOptions'
 import { Pagination } from '@/src/shared/components/Pagination'
@@ -53,12 +53,23 @@ export function OrdersTable({
                 ? (marcosOpts.find(o => o.value === String(p.id_marco))?.label ?? `#${p.id_marco}`)
                 : '—'
               const clienteNombre = rawVentas.find(rv => rv.id_venta === p.id_venta)?.client?.nombre ?? '—'
+              const cancelado  = isPedidoCancelado(estados, p.id_estado)
+              const finalizado = isPedidoFinalizado(estados, p.id_estado)
+              const entregado  = isPedidoEntregado(estados, p.id_estado)
+              // Cancelado/Finalizado/Entregado ya no admiten editar ni eliminar
+              // (Finalizado/Entregado son trazabilidad de algo que ya ocurrió;
+              // desde Finalizado el único cambio de estado válido sigue siendo
+              // avanzar a Entregado o cancelar, por eso el <StatusSelect> solo
+              // se deshabilita en Cancelado/Entregado, no en Finalizado).
+              const bloqueado = cancelado || finalizado || entregado
               return (
                 <TableRow
                   key={p.id_detalle}
-                  className={isPedidoFinalizado(estados, p.id_estado)
+                  className={entregado
                     ? 'bg-emerald-50 dark:bg-emerald-950/30 border-border'
-                    : 'hover:bg-muted/40 transition-colors border-border'}
+                    : finalizado
+                      ? 'bg-slate-50 dark:bg-slate-900/30 border-border'
+                      : 'hover:bg-muted/40 transition-colors border-border'}
                 >
                   <TableCell className="text-foreground text-sm">
                     <div className="font-medium">{ventaLabel}</div>
@@ -72,7 +83,7 @@ export function OrdersTable({
                     <StatusSelect
                       value={String(p.id_estado)}
                       onValueChange={(v) => onChangeStatus(p.id_detalle, Number(v), p.id_estado)}
-                      disabled={isPedidoCancelado(estados, p.id_estado)}
+                      disabled={cancelado || entregado}
                       options={estados.map((e, i) => ({
                         value: String(e.id_estado),
                         label: e.nombre,
@@ -95,19 +106,21 @@ export function OrdersTable({
                           <Button
                             variant="ghost" size="icon"
                             aria-label="Editar pedido"
-                            aria-disabled={isPedidoCancelado(estados, p.id_estado) || isPedidoFinalizado(estados, p.id_estado)}
-                            onClick={() => { if (!isPedidoCancelado(estados, p.id_estado) && !isPedidoFinalizado(estados, p.id_estado)) onEdit(p) }}
-                            className={(isPedidoCancelado(estados, p.id_estado) || isPedidoFinalizado(estados, p.id_estado)) ? 'opacity-40 cursor-not-allowed' : ''}
+                            aria-disabled={bloqueado}
+                            onClick={() => { if (!bloqueado) onEdit(p) }}
+                            className={bloqueado ? 'opacity-40 cursor-not-allowed' : ''}
                           >
-                            <Pencil className={`h-4 w-4 ${(isPedidoCancelado(estados, p.id_estado) || isPedidoFinalizado(estados, p.id_estado)) ? 'text-muted-foreground' : 'text-foreground'}`} />
+                            <Pencil className={`h-4 w-4 ${bloqueado ? 'text-muted-foreground' : 'text-foreground'}`} />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          {isPedidoCancelado(estados, p.id_estado)
+                          {cancelado
                             ? 'No se puede editar un servicio Cancelado'
-                            : isPedidoFinalizado(estados, p.id_estado)
-                              ? 'No se puede editar un servicio Finalizado'
-                              : 'Editar'}
+                            : entregado
+                              ? 'No se puede editar un servicio Entregado'
+                              : finalizado
+                                ? 'No se puede editar un servicio Finalizado'
+                                : 'Editar'}
                         </TooltipContent>
                       </Tooltip>
                       <Tooltip>
@@ -115,22 +128,21 @@ export function OrdersTable({
                           <Button
                             variant="ghost" size="icon"
                             aria-label="Eliminar servicio"
-                            aria-disabled={isPedidoCancelado(estados, p.id_estado) || isPedidoFinalizado(estados, p.id_estado)}
-                            onClick={() => {
-                              if (isPedidoCancelado(estados, p.id_estado) || isPedidoFinalizado(estados, p.id_estado)) return
-                              onDelete(p, servicioLabel)
-                            }}
-                            className={(isPedidoCancelado(estados, p.id_estado) || isPedidoFinalizado(estados, p.id_estado)) ? 'opacity-40 cursor-not-allowed' : ''}
+                            aria-disabled={bloqueado}
+                            onClick={() => { if (!bloqueado) onDelete(p, servicioLabel) }}
+                            className={bloqueado ? 'opacity-40 cursor-not-allowed' : ''}
                           >
-                            <Trash2 className={`h-4 w-4 ${(isPedidoCancelado(estados, p.id_estado) || isPedidoFinalizado(estados, p.id_estado)) ? 'text-muted-foreground' : 'text-destructive'}`} />
+                            <Trash2 className={`h-4 w-4 ${bloqueado ? 'text-muted-foreground' : 'text-destructive'}`} />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          {isPedidoCancelado(estados, p.id_estado)
+                          {cancelado
                             ? 'No se puede eliminar: ya está Cancelado'
-                            : isPedidoFinalizado(estados, p.id_estado)
-                              ? 'No se puede eliminar: ya está Finalizado — solo se puede cancelar'
-                              : 'Eliminar'}
+                            : entregado
+                              ? 'No se puede eliminar: ya está Entregado'
+                              : finalizado
+                                ? 'No se puede eliminar: ya está Finalizado — solo se puede cancelar o entregar'
+                                : 'Eliminar'}
                         </TooltipContent>
                       </Tooltip>
                     </div>

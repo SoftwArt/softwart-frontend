@@ -22,7 +22,8 @@ export function badgeClass(index: number): string {
 const ESTADO_BADGE_BY_NAME: Record<string, string> = {
   'sin empezar':    'border-amber-300 bg-amber-100 text-amber-800',
   'en preparación': 'border-blue-300 bg-blue-100 text-blue-800',
-  'finalizado':     'border-emerald-300 bg-emerald-100 text-emerald-800',
+  'finalizado':     'border-slate-400 bg-slate-200 text-slate-700',
+  'entregado':      'border-emerald-300 bg-emerald-100 text-emerald-800',
   'cancelado':      'border-red-300 bg-red-100 text-red-800',
 }
 
@@ -82,6 +83,11 @@ export function isPedidoCancelado(estados: EstadoServicio[], id: number): boolea
 export function isPedidoFinalizado(estados: EstadoServicio[], id: number): boolean {
   return estadoNombre(estados, id).toLowerCase().includes('finaliz')
 }
+// Entregado es el estado terminal real (después de Finalizado): el cliente
+// ya se llevó la pieza — a partir de acá el servicio no admite más cambios.
+export function isPedidoEntregado(estados: EstadoServicio[], id: number): boolean {
+  return estadoNombre(estados, id).toLowerCase().includes('entreg')
+}
 
 export const MSG_CANCELAR_BASE = 'Esta acción es definitiva: un servicio cancelado no podrá modificarse ni volver a cambiar de estado.'
 
@@ -90,7 +96,7 @@ export function buildCancelCascadeLines(sale: SalePreview, idDetalleActual: numb
     .filter(d => d.id_detalle !== idDetalleActual)
     .filter(d => {
       const n = d.serviceStatus?.nombre?.toLowerCase() ?? ''
-      return !n.includes('finaliz') && !n.includes('cancel')
+      return !n.includes('finaliz') && !n.includes('entreg') && !n.includes('cancel')
     })
 
   if (hermanosActivos.length > 0) {

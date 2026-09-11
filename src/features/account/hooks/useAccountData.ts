@@ -28,7 +28,7 @@ export function useAccountData() {
   const serviciosActivos = useMemo(() =>
     servicios.filter(s => {
       const e = s.estado.toLowerCase()
-      return !e.includes('finaliz') && !e.includes('cancel')
+      return !e.includes('finaliz') && !e.includes('entreg') && !e.includes('cancel')
     }).length
   , [servicios])
 
